@@ -238,6 +238,12 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
     double* Q    = (double*) malloc(N * N * sizeof(double));
     if(Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     double sum_Q = .0;
+
+    // Here we take into account the diagonals?
+    for(int n=0; n<N; n++) {
+      sum_Q += sqrt(2.*3.14159/betas[n]); 
+    } 
+    
     int nN = 0;
     for(int n = 0; n < N; n++) {
     	for(int m = 0; m < N; m++) {
@@ -414,7 +420,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 		// Row normalize P
 
 		// We can add something like 1./beta 
-		for(int m = 0; m < N; m++) P[nN + m] /= sum_P;
+		for(int m = 0; m < N; m++) P[nN + m] /= (sqrt(2.*3.14159/beta)+sum_P);
         nN += N;
 	betas[n] = beta;
 	// printf("beta: %f\n", beta); 

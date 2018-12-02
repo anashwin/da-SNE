@@ -2,7 +2,7 @@ import numpy as np
 import bhtsne
 from sklearn.decomposition import PCA
 
-data = np.loadtxt('example_data/pollen.txt',delimiter=',').T
+data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
 
 data = np.log(1+data)
 
@@ -18,6 +18,7 @@ pc_data = np.loadtxt('gaussian_density_drastic.txt').T
 
 print(pc_data.shape)
 
-embedded = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0., verbose=True)
+embedded = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0., verbose=True,
+                              perplexity=30)
 
 np.savetxt('bh_out.txt', embedded)
