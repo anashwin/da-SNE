@@ -2,10 +2,7 @@ import numpy as np
 import bhtsne
 from sklearn.decomposition import PCA
 
-<<<<<<< HEAD
-=======
 data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
->>>>>>> tail_mod
 
 # data = np.log(1+data)
 
