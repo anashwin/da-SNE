@@ -248,7 +248,7 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // printf("nu = %f\n", nu);
 	      // nu = 1; 
-                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu+1)/2.);
+                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu)/2.);
                 sum_Q += Q[nN + m];
             }
         }
@@ -266,7 +266,7 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
 	      // double nu = (betas[n] + betas[m])/(2*beta_min); 
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // nu = 1; 
-	      double mult = (nu+1)/nu*(P[nN + m] - (Q[nN + m] / sum_Q))/(1+DD[nN+m]/nu);
+	      double mult = (P[nN + m] - (Q[nN + m] / sum_Q))/(1+DD[nN+m]/nu);
                 for(int d = 0; d < D; d++) {
                     dC[nD + d] += (Y[nD + d] - Y[mD + d]) * mult;
                 }

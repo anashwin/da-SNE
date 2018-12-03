@@ -10,9 +10,9 @@ def int2color(i):
     else:
         return 'green'
 
-pts = np.loadtxt('pollen_out/bh_out.txt')
+pts = np.loadtxt('bh_out.txt')
 # pts = np.loadtxt('gaussian_density_drastic.txt').T
-asgn = np.loadtxt('example_data/pollen_labels.txt', dtype=int)
+asgn = np.loadtxt('../example_data/pollen_labels.txt', dtype=int)
 
 color_int = np.array([i/250 for i in xrange(len(pts))],dtype=int)
 max_T = max(asgn)
