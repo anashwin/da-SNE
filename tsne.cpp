@@ -250,12 +250,12 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
     	for(int m = 0; m < N; m++) {
 
             if(n != m) {
-	      double nu = log(betas[n]) + log(betas[m]) - 2*log(beta_min);
+	      double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
 	      // double nu = (betas[n] + betas[m])/(2.*beta_min);
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // printf("nu = %f\n", nu);
 	      // nu = 1; 
-                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu-1)/2.);
+                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu+1)/2.);
                 sum_Q += Q[nN + m];
             }
         }
@@ -269,7 +269,7 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
         int mD = 0;
     	for(int m = 0; m < N; m++) {
             if(n != m) {
-	      double nu = log(betas[n]) + log(betas[m]) - 2*log(beta_min);
+	      double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
 	      // double nu = (betas[n] + betas[m])/(2.*beta_min); 
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // nu = 1; 
@@ -388,7 +388,11 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 		while(!found && iter < 200) {
 
 			// Compute Gaussian kernel row
-			for(int m = 0; m < N; m++) P[nN + m] = exp(-beta * DD[nN + m]);
+		  double min_D = DBL_MAX;
+		  for(int m = 0; m < N; m++) {
+		    P[nN + m] = exp(-beta * DD[nN + m]);
+		    if (DD[nN+m] < min_D) min_D = DD[nN+m]; 
+		  }
 			P[nN + n] = DBL_MIN;
 
 			// Compute entropy of current row
@@ -437,7 +441,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 
         nN += N;
 	betas[n] = beta;
-	// printf("beta: %f\n", beta); 
+	printf("beta: %f\n", beta); 
 	if (beta < smallest_beta) smallest_beta = beta;
 	if (beta > largest_beta) largest_beta = beta; 
 	}
@@ -445,8 +449,9 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 	nN = 0;
 	for (int n = 0; n < N; n++) {
 	  for (int m =0; m < N; m++) {
-		P[nN+m] /= (.5*D*(log(largest_beta/betas[n])
-				  - 1 + betas[n]/largest_beta)+sums_P[n]);
+	    P[nN+m] /= (.5*D*(log(largest_beta/betas[n])
+			      - 1 + betas[n]/largest_beta)+sums_P[n]);
+	    //P[nN+m] /= sums_P[n];
 	  }
 	    nN += N; 
 	  }
