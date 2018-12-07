@@ -9,7 +9,7 @@ def int2color(i):
         return 'blue'
     else:
         return 'green'
-pts = np.loadtxt('bh_out.txt')
+pts = np.loadtxt('downweight_tails_bh_out_gaussian.txt')
 # pts = np.loadtxt('UMAP_test.txt')
 # pts = np.loadtxt('gaussian_density_drastic.txt').T
 # asgn = np.loadtxt('example_data/pollen_labels.txt', dtype=int)
@@ -36,4 +36,4 @@ ax.scatter(pts[:,0], pts[:,1], c=colors)
 
 plt.show()
 
-fig.savefig('UMAP_plot.png', bbox_inches='tight')
+fig.savefig('dwt_tls_gaussian_plot.png', bbox_inches='tight')

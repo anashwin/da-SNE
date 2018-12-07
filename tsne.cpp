@@ -240,10 +240,10 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
     if(Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     double sum_Q = .0;
 
-    // // Here we take into account the diagonals?
-    // for(int n=0; n<N; n++) {
-    //   sum_Q += 1.5*(log(beta_max/betas[n]) - 1 + betas[n]/beta_max);
-    // } 
+    // Here we take into account the diagonals?
+    for(int n=0; n<N; n++) {
+       sum_Q += 1.5*(log(beta_max/betas[n]) - 1 + betas[n]/beta_max);
+     } 
     
     int nN = 0;
     for(int n = 0; n < N; n++) {
@@ -441,7 +441,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 
         nN += N;
 	betas[n] = beta;
-	printf("beta: %f\n", beta); 
+	printf("beta: %f\n", beta);
 	if (beta < smallest_beta) smallest_beta = beta;
 	if (beta > largest_beta) largest_beta = beta; 
 	}
@@ -449,18 +449,31 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 	nN = 0;
 	for (int n = 0; n < N; n++) {
 	  for (int m =0; m < N; m++) {
+
+	    // P[nN+m] /= .5*D*betas[n]/largest_beta + sums_P[n]; 
+	    
+	    // KL-divergence b/w Gaussians downweighting
+	    
 	    P[nN+m] /= (.5*D*(log(largest_beta/betas[n])
 			      - 1 + betas[n]/largest_beta)+sums_P[n]);
+	    
+	    /*
+	    P[nN+m] /= (.5*D*(log(betas[n]/smallest_beta)
+			      - 1 + smallest_beta/betas[n]) + sums_P[n]); 
+	    */
 	    //P[nN+m] /= sums_P[n];
 	  }
-	    nN += N; 
+	    nN += N;
+
+	    printf("correction: %f\n", .5*D*(log(largest_beta/betas[n]) - 1 + betas[n]/largest_beta)); 
 	  }
+
 	
-	printf("min beta: %f\n", smallest_beta); 
+	printf("min beta: %f\n", smallest_beta);
+	printf("max beta: %f\n", largest_beta); 
 	// Clean up memory
 	free(DD); DD = NULL;
 }
-
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
 void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K) {
