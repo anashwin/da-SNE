@@ -1,5 +1,6 @@
 This software package will hopefully contain a density-aware modification of the Barnes-Hut implementation of t-SNE by Van Der Maaten
 
+All of the following is taken from Van Der Maaten's repository: https://github.com/lvdmaaten/bhtsne
 
 # Installation #
 
