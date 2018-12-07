@@ -18,6 +18,7 @@ data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
 
 print(pc_data.shape)
 
-embedded = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0., verbose=True, perplexity=30)
+embedded = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0., verbose=True,
+                              perplexity=30)
 
-np.savetxt('bh_out.txt', embedded)
+np.savetxt('pollen_out/downweight_tails_bh_out.txt', embedded)

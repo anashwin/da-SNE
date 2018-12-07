@@ -90,13 +90,14 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     // Compute input similarities for exact t-SNE
     double* P; unsigned int* row_P; unsigned int* col_P; double* val_P;
     double* betas = (double*) malloc(N*sizeof(double));
-    double min_beta; 
+    double min_beta;
+    double max_beta; 
     if(exact) {
         // Compute similarities
         printf("Exact?");
         P = (double*) malloc(N * N * sizeof(double));
         if(P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-        computeGaussianPerplexity(X, N, D, P, perplexity, betas, min_beta);
+        computeGaussianPerplexity(X, N, D, P, perplexity, betas, min_beta, max_beta);
 
         // Symmetrize input similarities
         printf("Symmetrizing...\n");
@@ -147,7 +148,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 	for(int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
-	  if(exact) computeExactGradient(P, Y, N, no_dims, dY, betas, min_beta);
+	  if(exact) computeExactGradient(P, Y, N, no_dims, dY, betas, min_beta, max_beta);
         else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta);
 
         // Update gains
@@ -224,7 +225,7 @@ void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, dou
 }
 
 // Compute gradient of the t-SNE cost function (exact)
-void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas, double beta_min) {
+void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas, double beta_min, double beta_max) {
 
 	// Make sure the current gradient contains zeros
 	for(int i = 0; i < N * D; i++) dC[i] = 0.0;
@@ -238,13 +239,21 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
     double* Q    = (double*) malloc(N * N * sizeof(double));
     if(Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     double sum_Q = .0;
+
+    // Here we take into account the diagonals?
+    for(int n=0; n<N; n++) {
+       sum_Q += 1.5*(log(beta_max/betas[n]) - 1 + betas[n]/beta_max);
+     } 
+    
     int nN = 0;
     for(int n = 0; n < N; n++) {
     	for(int m = 0; m < N; m++) {
 
             if(n != m) {
-	      double nu = log(betas[n]) + log(betas[m]) - 2*log(beta_min);
-	      // double nu = (betas[n] + betas[m])/(2*beta_min); 
+
+	      double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
+	      // double nu = (betas[n] + betas[m])/(2.*beta_min);
+	      
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // printf("nu = %f\n", nu);
 	      // nu = 1; 
@@ -262,8 +271,10 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC, 
         int mD = 0;
     	for(int m = 0; m < N; m++) {
             if(n != m) {
-	      double nu = log(betas[n]) + log(betas[m]) - 2*log(beta_min);
-	      // double nu = (betas[n] + betas[m])/(2*beta_min); 
+
+	      double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
+	      // double nu = (betas[n] + betas[m])/(2.*beta_min); 
+
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // nu = 1; 
 	      double mult = (P[nN + m] - (Q[nN + m] / sum_Q))/(1+DD[nN+m]/nu);
@@ -353,13 +364,17 @@ double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val
 
 
 // Compute input similarities with a fixed perplexity
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity, double* betas, double& smallest_beta) {
-  smallest_beta = DBL_MAX; 
+void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity, double* betas, double& smallest_beta, double& largest_beta) {
+  largest_beta = DBL_MIN; 
+  smallest_beta = DBL_MAX;
 	// Compute the squared Euclidean distance matrix
 	double* DD = (double*) malloc(N * N * sizeof(double));
     if(DD == NULL) { printf("Memory allocation failed!\n"); exit(1); }
 	computeSquaredEuclideanDistance(X, N, D, DD);
 
+
+	double* sums_P = (double*)malloc(N*sizeof(double)); 
+	
 	// Compute the Gaussian kernel row by row
     int nN = 0;
 	for(int n = 0; n < N; n++) {
@@ -377,7 +392,11 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 		while(!found && iter < 200) {
 
 			// Compute Gaussian kernel row
-			for(int m = 0; m < N; m++) P[nN + m] = exp(-beta * DD[nN + m]);
+		  double min_D = DBL_MAX;
+		  for(int m = 0; m < N; m++) {
+		    P[nN + m] = exp(-beta * DD[nN + m]);
+		    if (DD[nN+m] < min_D) min_D = DD[nN+m]; 
+		  }
 			P[nN + n] = DBL_MIN;
 
 			// Compute entropy of current row
@@ -413,21 +432,52 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 			iter++;
 		}
 
+		sums_P[n] = sum_P; 
 		// Row normalize P
 
 		// We can add something like 1./beta 
-		for(int m = 0; m < N; m++) P[nN + m] /= sum_P;
+		// for(int m = 0; m < N; m++) P[nN + m] /= (sqrt(2.*3.14159/beta)+sum_P);
+		/*
+		for(int m = 0; m < N; m++) {
+		  P[nN + m] /= (sum_P);
+		}
+		*/
+
         nN += N;
 	betas[n] = beta;
-	// printf("beta: %f\n", beta); 
-	if (beta < smallest_beta) smallest_beta = beta; 
+	printf("beta: %f\n", beta);
+	if (beta < smallest_beta) smallest_beta = beta;
+	if (beta > largest_beta) largest_beta = beta; 
 	}
 
-	printf("min beta: %f\n", smallest_beta); 
+	nN = 0;
+	for (int n = 0; n < N; n++) {
+	  for (int m =0; m < N; m++) {
+
+	    // P[nN+m] /= .5*D*betas[n]/largest_beta + sums_P[n]; 
+	    
+	    // KL-divergence b/w Gaussians downweighting
+	    
+	    P[nN+m] /= (.5*D*(log(largest_beta/betas[n])
+			      - 1 + betas[n]/largest_beta)+sums_P[n]);
+	    
+	    /*
+	    P[nN+m] /= (.5*D*(log(betas[n]/smallest_beta)
+			      - 1 + smallest_beta/betas[n]) + sums_P[n]); 
+	    */
+	    //P[nN+m] /= sums_P[n];
+	  }
+	    nN += N;
+
+	    printf("correction: %f\n", .5*D*(log(largest_beta/betas[n]) - 1 + betas[n]/largest_beta)); 
+	  }
+
+	
+	printf("min beta: %f\n", smallest_beta);
+	printf("max beta: %f\n", largest_beta); 
 	// Clean up memory
 	free(DD); DD = NULL;
 }
-
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
 void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K) {
