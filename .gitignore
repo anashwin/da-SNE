@@ -4,6 +4,7 @@
 
 # ignore the C++ binary
 bh_tsne
+bh_da_sne
 
 # ignore data files
 *.txt
