@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cmath>
-#include "sptree.h"
+#include "da_sptree.h"
 
 
 
@@ -88,7 +88,7 @@ bool Cell::containsPoint(double point[])
 
 
 // Default constructor for DA_SPTree -- build tree, too!
-DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, unsigned int N)
+DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N)
 {
     
     // Compute mean, width, and height of current map (boundaries of DA_SPTree)
@@ -109,7 +109,7 @@ DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, unsigned int N)
     // Construct DA_SPTree
     double* width = (double*) malloc(D * sizeof(double));
     for(int d = 0; d < D; d++) width[d] = fmax(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
-    init(NULL, D, inp_data, mean_Y, width);
+    init(NULL, D, inp_data, inp_betas, beta_min, mean_Y, width);
     fill(N);
     
     // Clean up memory
@@ -121,45 +121,54 @@ DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, unsigned int N)
 
 
 // Constructor for DA_SPTree with particular size and parent -- build the tree, too!
-DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width)
+DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width)
 {
-    init(NULL, D, inp_data, inp_corner, inp_width);
+  init(NULL, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
     fill(N);
 }
 
 
 // Constructor for DA_SPTree with particular size (do not fill the tree)
-DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_corner, double* inp_width)
+DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width)
 {
-    init(NULL, D, inp_data, inp_corner, inp_width);
+  init(NULL, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
 }
 
 
 // Constructor for DA_SPTree with particular size and parent (do not fill tree)
-DA_SPTree::DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width) {
-    init(inp_parent, D, inp_data, inp_corner, inp_width);
+DA_SPTree::DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width) {
+  init(inp_parent, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
 }
 
 
 // Constructor for DA_SPTree with particular size and parent -- build the tree, too!
-DA_SPTree::DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width)
+DA_SPTree::DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas,
+		     double beta_min, unsigned int N, double* inp_corner, double* inp_width)
 {
-    init(inp_parent, D, inp_data, inp_corner, inp_width);
+  init(inp_parent, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
     fill(N);
 }
 
 
 // Main initialization function
-void DA_SPTree::init(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width)
+void DA_SPTree::init(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min,
+		     double* inp_corner, double* inp_width)
 {
     parent = inp_parent;
     dimension = D;
     no_children = 2;
     for(unsigned int d = 1; d < D; d++) no_children *= 2;
     data = inp_data;
+    betas = inp_betas; 
     is_leaf = true;
     size = 0;
     cum_size = 0;
+
+    overall_beta_min = beta_min; 
+    
+    min_beta = DBL_MAX;
+    max_beta = DBL_MIN; 
+
     
     boundary = new Cell(dimension);
     for(unsigned int d = 0; d < D; d++) boundary->setCorner(d, inp_corner[d]);
@@ -216,6 +225,17 @@ bool DA_SPTree::insert(unsigned int new_index)
     double mult2 = 1.0 / (double) cum_size;
     for(unsigned int d = 0; d < dimension; d++) center_of_mass[d] *= mult1;
     for(unsigned int d = 0; d < dimension; d++) center_of_mass[d] += mult2 * point[d];
+
+    double beta = betas[new_index];
+    
+    // update beta values
+    log_beta_com = ((double) (cum_size - 1))/ ((double) cum_size) * log_beta_com
+      + 1.0/((double) cum_size) * log(beta); // New center of mass
+
+    if (beta < min_beta) min_beta = beta;
+    if (beta > max_beta) max_beta = beta;
+
+    beta_ratio = max_beta/min_beta - 1; // i.e. beta_max = (1+beta_ratio)*beta_min
     
     // If there is space in this quad tree and it is a leaf, add the object here
     if(is_leaf && size < QT_NODE_CAPACITY) {
@@ -262,7 +282,7 @@ void DA_SPTree::subdivide() {
             else                   new_corner[d] = boundary->getCorner(d) + .5 * boundary->getWidth(d);
             div *= 2;
         }
-        children[i] = new DA_SPTree(this, dimension, data, new_corner, new_width);
+        children[i] = new DA_SPTree(this, dimension, data, betas, overall_beta_min, new_corner, new_width);
     }
     free(new_corner);
     free(new_width);
@@ -357,19 +377,28 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
         cur_width = boundary->getWidth(d);
         max_width = (max_width > cur_width) ? max_width : cur_width;
     }
-    if(is_leaf || max_width / sqrt(D) < theta) {
+
+    // Check the beta condition as well:
+    // if (!is_leaf) printf("beta ratio: %f\n", beta_ratio);
     
+    if(is_leaf || (max_width / sqrt(D) < theta && beta_ratio < beta_thresh)) {
+      
         // Compute and add t-SNE force between point and current node
-        D = 1.0 / (1.0 + D);
+      // TO DO: Updated D to take into account the degrees of freedom
+      // Ideally we should handle different DoF definitions
+      double nu = 1+log(betas[point_index]) + log_beta_com - 2*log(overall_beta_min);
+      double D_base = 1.0/(1.0 + D); 
+      D = pow(1.0 + D/nu, -(nu+1)/2.0);
         double mult = cum_size * D;
-        *sum_Q += mult;
-        mult *= D;
+        *sum_Q += mult; // This is going to be Z
+        mult *= (nu+1)/nu*D_base;
+	// printf("%f %f %f %f\n", neg_f[0], neg_f[1], mult, betas[point_index]); 
         for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
     }
     else {
 
         // Recursively apply Barnes-Hut to children
-        for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q);
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q);
     }
 }
 
@@ -391,7 +420,7 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
             for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind1 + d] - data[ind2 + d];
             for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
             D = val_P[i] / D;
-            
+	    // printf("[%f, {%f, %f}]; ", D, buff[0], buff[1]); 
             // Sum positive force
             for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }

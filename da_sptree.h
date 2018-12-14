@@ -13,7 +13,8 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    This product includes software developed by the Delft University of Technology.
- * 4. Neither the name of the Delft University of Technology nor the names of
+ * 4. Neither the
+ name of the Delft University of Technology nor the names of
  *    its contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -74,6 +75,14 @@ class DA_SPTree
     unsigned int cum_size;
 
     double beta_ratio; 
+    double log_beta_com; 
+
+    // min_beta and max_beta, like cum_size are properties of *this particular node*
+    double min_beta;
+    double max_beta;
+
+    // overall_beta_min is the smallest beta taken *over all the betas* 
+    double overall_beta_min; 
     
     // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
     Cell* boundary;
@@ -82,17 +91,22 @@ class DA_SPTree
     double* data;
     double* center_of_mass;
     unsigned int index[QT_NODE_CAPACITY];
+
+    // Keep track of the betas here as well
+    double* betas; 
     
     // Children
     DA_SPTree** children;
     unsigned int no_children;
     
 public:
-    DA_SPTree(unsigned int D, double* inp_data, unsigned int N);
-    DA_SPTree(unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
-    DA_SPTree(unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width);
-    DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width);
-    DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
+    DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N);
+    DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width);
+    DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width);
+    DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min,
+	      unsigned int N, double* inp_corner, double* inp_width);
+    DA_SPTree(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min,
+	      double* inp_corner, double* inp_width);
     ~DA_SPTree();
     void setData(double* inp_data);
     DA_SPTree* getParent();
@@ -108,7 +122,8 @@ public:
     void print();
     
 private:
-    void init(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
+    void init(DA_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min,
+	      double* inp_corner, double* inp_width);
     void fill(unsigned int N);
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc);
     bool isChild(unsigned int test_index, unsigned int start, unsigned int end);
