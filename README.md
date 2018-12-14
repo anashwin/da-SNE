@@ -1,42 +1,20 @@
 This software package will hopefully contain a density-aware modification of the Barnes-Hut implementation of t-SNE by Van Der Maaten
 
-All of the following is taken from Van Der Maaten's repository: https://github.com/lvdmaaten/bhtsne
+All of the following is adapted from Van Der Maaten's repository: https://github.com/lvdmaaten/bhtsne
 
 # Installation #
 
 On Linux or OS X, compile the source using the following command:
 
 ```
-g++ sptree.cpp tsne.cpp tsne_main.cpp -o bh_tsne -O2
+g++ da_sptree.cpp da_sne.cpp da_sne_main.cpp -o bh_da_sne -O2
 ```
 
-The executable will be called `bh_tsne`.
-
-On Windows using Visual C++, do the following in your command line:
-
-- Find the `vcvars64.bat` file in your Visual C++ installation directory. This file may be named `vcvars64.bat` or something similar. For example:
-
-```
-  // Visual Studio 12
-  "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\amd64\vcvars64.bat"
-
-  // Visual Studio 2013 Express:
-  C:\VisualStudioExp2013\VC\bin\x86_amd64\vcvarsx86_amd64.bat
-```
-
-- From `cmd.exe`, go to the directory containing that .bat file and run it.
-
-- Go to `bhtsne` directory and run:
-
-```
-  nmake -f Makefile.win all
-```
-
-The executable will be called `windows\bh_tsne.exe`.
+The executable will be called `bh_da_sne`.
 
 # Usage #
 
-The code comes with wrappers for Matlab and Python. These wrappers write your data to a file called `data.dat`, run the `bh_tsne` binary, and read the result file `result.dat` that the binary produces. There are also external wrappers available for [Torch](https://github.com/clementfarabet/manifold), [R](https://github.com/jkrijthe/Rtsne), and [Julia](https://github.com/zhmz90/BHTsne.jl). Writing your own wrapper should be straightforward; please refer to one of the existing wrappers for the format of the data and result files.
+The code comes with wrappers for Matlab and Python. (Right now, the Matlab wrapper is not implemented for da-SNE!). These wrappers write your data to a file called `data.dat`, run the `bh_tsne` binary, and read the result file `result.dat` that the binary produces. There are also external wrappers available for [Torch](https://github.com/clementfarabet/manifold), [R](https://github.com/jkrijthe/Rtsne), and [Julia](https://github.com/zhmz90/BHTsne.jl). Writing your own wrapper should be straightforward; please refer to one of the existing wrappers for the format of the data and result files.
 
 Demonstration of usage in Matlab:
 
@@ -52,11 +30,11 @@ Demonstration of usage in Python:
 
 ```python
 import numpy as np
-import bhtsne
+import bh_da_sne
 
 data = np.loadtxt("mnist2500_X.txt", skiprows=1)
 
-embedding_array = bhtsne.run_bh_tsne(data, initial_dims=data.shape[1])
+embedding_array = bh_da_sne.run_bh_tsne(data, initial_dims=data.shape[1])
 ```
 
 ### Python Wrapper
@@ -64,7 +42,7 @@ embedding_array = bhtsne.run_bh_tsne(data, initial_dims=data.shape[1])
 Usage:
 
 ```bash
-python bhtsne.py [-h] [-d NO_DIMS] [-p PERPLEXITY] [-t THETA]
+python bh_da_sne.py [-h] [-d NO_DIMS] [-p PERPLEXITY] [-t THETA] [-e THRESH] 
                   [-r RANDSEED] [-n INITIAL_DIMS] [-v] [-i INPUT]
                   [-o OUTPUT] [--use_pca] [--no_pca] [-m MAX_ITER]
 ```
@@ -75,6 +53,7 @@ Below are the various options the wrapper program `bhtsne.py` expects:
 - `-d NO_DIMS, --no_dims`           NO_DIMS
 - `-p PERPLEXITY, --perplexity`     PERPLEXITY
 - `-t THETA, --theta`               THETA
+- `-e THRESH, --thresh`             threshold for betas 
 - `-r RANDSEED, --randseed`         RANDSEED
 - `-n INITIAL_DIMS, --initial_dims` INITIAL_DIMS
 - `-v, --verbose`

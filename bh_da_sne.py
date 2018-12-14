@@ -80,7 +80,7 @@ def _argparse():
             default=DEFAULT_PERPLEXITY)
     # 0.0 for theta is equivalent to vanilla t-SNE
     argparse.add_argument('-t', '--theta', type=float, default=DEFAULT_THETA)
-    argparse.add_argument('--thresh', type=float, default=DEFAULT_THRESH)
+    argparse.add_argument('-e', '--thresh', type=float, default=DEFAULT_THRESH)
     argparse.add_argument('-r', '--randseed', type=int, default=EMPTY_SEED)
     argparse.add_argument('-n', '--initial_dims', type=int, default=INITIAL_DIMENSIONS)
     argparse.add_argument('-v', '--verbose', action='store_true')
