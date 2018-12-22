@@ -10,7 +10,7 @@ def int2color(i):
     else:
         return 'green'
 
-pts = np.loadtxt('pollen_out/downweight_tails_bh_out.txt')
+pts = np.loadtxt('pollen_out/da_bh_out.txt')
 
 # pts = np.loadtxt('gaussian_density_drastic.txt').T
 asgn = np.loadtxt('../example_data/pollen_labels.txt', dtype=int)

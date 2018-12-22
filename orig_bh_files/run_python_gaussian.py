@@ -21,4 +21,4 @@ print(pc_data.shape)
 embedded = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0., verbose=True,
                               perplexity=30)
 
-np.savetxt('downweight_tails_bh_out_gaussian_overlap.txt', embedded)
+np.savetxt('orig_overlap_out.txt', embedded)

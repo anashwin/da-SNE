@@ -1,5 +1,5 @@
 import numpy as np
-
+import sys
 import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -9,7 +9,15 @@ def int2color(i):
         return 'blue'
     else:
         return 'green'
-pts = np.loadtxt('da_out_gaussian_drastic.txt')
+
+if len(sys.argv) > 1: 
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
+else:
+    infile = 'bh_da_overlap_out.txt'
+    outfile = 'bh_da_overlap_plot.png'
+
+pts = np.loadtxt(infile)
 # pts = np.loadtxt('UMAP_test.txt')
 # pts = np.loadtxt('gaussian_density_drastic.txt').T
 # asgn = np.loadtxt('example_data/pollen_labels.txt', dtype=int)
@@ -36,4 +44,4 @@ ax.scatter(pts[:,0], pts[:,1], c=colors)
 
 plt.show()
 
-fig.savefig('da__bh_gaussian_plot.png', bbox_inches='tight')
+fig.savefig(outfile, bbox_inches='tight')

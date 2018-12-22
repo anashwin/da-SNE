@@ -360,7 +360,7 @@ unsigned int DA_SPTree::getDepth() {
 // Compute non-edge forces using Barnes-Hut algorithm
 void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q)
 {
-    
+  
     // Make sure that we spend no time on empty nodes or self-interactions
     if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
     

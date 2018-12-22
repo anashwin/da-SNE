@@ -220,6 +220,12 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
     // Compute all terms required for t-SNE gradient
     double sum_Q = .0;
+
+    for (int n=0; n<N; n++) {
+      double beta = betas[n];
+      sum_Q += 1.5*(log(beta_max/beta) - 1 + beta/beta_max); 
+    } 
+    
     double* pos_f = (double*) calloc(N * D, sizeof(double));
     double* neg_f = (double*) calloc(N * D, sizeof(double));
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
@@ -232,9 +238,10 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
 		
     }
+    /*
     printf("dC: %f; pos_f: %f; neg_f: %f; sum_Q: %f\n",dC[0], pos_f[0], neg_f[0],
 	   sum_Q); 
-
+    */
     free(pos_f);
     free(neg_f);
     delete tree;
@@ -367,8 +374,8 @@ double DA_SNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* v
             for(int d = 0; d < D; d++) buff[d]  = Y[ind1 + d];
             for(int d = 0; d < D; d++) buff[d] -= Y[ind2 + d];
             for(int d = 0; d < D; d++) Q += buff[d] * buff[d];
-	    double nu = log(betas[ind1]) + log(betas[ind2]) - 2*log(beta_min); 
-            Q = pow(1.0 + Q, -(nu+1)/2.0) / sum_Q;
+	    double nu = log(betas[n]) + log(betas[col_P[i]]) - 2*log(beta_min); 
+            Q = pow(1.0 + Q/nu, -(nu+1)/2.0) / sum_Q;
             C += val_P[i] * log((val_P[i] + FLT_MIN) / (Q + FLT_MIN));
         }
     }
