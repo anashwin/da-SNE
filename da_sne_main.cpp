@@ -34,7 +34,7 @@ int main() {
 
 		// Save the results
 		tsne->save_data(Y, landmarks, costs, N, no_dims);
-
+		
         // Clean up the memory
 		free(data); data = NULL;
 		free(Y); Y = NULL;

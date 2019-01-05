@@ -8,9 +8,12 @@ K = 2
 
 sep = 1.
 means = np.array([[(-1)**(j+k)*k*sep for j in xrange(D)] for k in xrange(K)])
+# means = np.array([[k*sep for j in xrange(D)] for k in xrange(K)])
+# means = np.array([[k for k in xrange(K)], [0 for k in xrange(K)], [0 for k in xrange(K)]]).T
+# means = np.zeros((K, D))
 
-growth = 1.
-base = .5
+growth = 10.
+base = .1
 
 vars = np.array([growth**i*base*np.eye(D) for i in xrange(K)])
 
@@ -33,4 +36,4 @@ for k in xrange(K):
     samples[ct:ct+N_pts[k]] = k_samples
     ct+=N_pts[k]
 
-np.savetxt('gaussian_density_overlap.txt', samples.T, delimiter='\t')
+np.savetxt('gd_K2_G10.txt', samples.T, delimiter='\t')

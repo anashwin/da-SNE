@@ -7,15 +7,21 @@ import matplotlib.pyplot as plt
 def int2color(i):
     if i == 0:
         return 'blue'
-    else:
+    elif i == 1: 
         return 'green'
+    elif i == 2:
+        return 'orange'
+    elif i == 3:
+        return 'black'
+    elif i == 4:
+        return 'red'
 
 if len(sys.argv) > 1: 
     infile = sys.argv[1]
     outfile = sys.argv[2]
 else:
-    infile = 'bh_da_overlap_out.txt'
-    outfile = 'bh_da_overlap_plot.png'
+    infile = 'bh_da_drastic_out.txt'
+    outfile = 'bh_da_drastic_plot.png'
 
 pts = np.loadtxt(infile)
 # pts = np.loadtxt('UMAP_test.txt')
@@ -44,4 +50,4 @@ ax.scatter(pts[:,0], pts[:,1], c=colors)
 
 plt.show()
 
-fig.savefig(outfile, bbox_inches='tight')
+# fig.savefig(outfile, bbox_inches='tight')

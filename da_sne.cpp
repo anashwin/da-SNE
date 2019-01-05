@@ -36,6 +36,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <iostream>
+#include <fstream>
 #include "vptree.h"
 #include "da_sptree.h"
 #include "da_sne.h"
@@ -133,6 +135,17 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         for(int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
 	// Should the downweighting happen here or in the computeGaussianPerplexity function?
     }
+
+    // save_betas(betas);
+    fstream beta_file;
+
+    beta_file.open("beta_file.txt", fstream::out);
+    if (beta_file.is_open()) {
+    for (int n=0; n<N; n++) {
+      beta_file << betas[n] << "\n"; 
+    } 
+    beta_file.close();
+    }
     end = clock();
 
     // Lie about the P-values
@@ -223,7 +236,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
     for (int n=0; n<N; n++) {
       double beta = betas[n];
-      sum_Q += 1.5*(log(beta_max/beta) - 1 + beta/beta_max); 
+      sum_Q += 1.5*((beta_max/beta) - 1 + log(beta/beta_max));
+      // sum_Q += exp(-beta/beta_min); 
     } 
     
     double* pos_f = (double*) calloc(N * D, sizeof(double));
@@ -265,7 +279,8 @@ void DA_SNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC
 
     // Here we take into account the diagonals?
     for(int n=0; n<N; n++) {
-       sum_Q += 1.5*(log(beta_max/betas[n]) - 1 + betas[n]/beta_max);
+      sum_Q += 1.5*(log(beta_max/betas[n]) - 1 + betas[n]/beta_max);
+      // sum_Q += exp(-betas[n]/beta_max); 
      } 
     
     int nN = 0;
@@ -280,7 +295,7 @@ void DA_SNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // printf("nu = %f\n", nu);
 	      // nu = 1; 
-                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu)/2.);
+                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu+1)/2.);
                 sum_Q += Q[nN + m];
             }
         }
@@ -374,7 +389,7 @@ double DA_SNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* v
             for(int d = 0; d < D; d++) buff[d]  = Y[ind1 + d];
             for(int d = 0; d < D; d++) buff[d] -= Y[ind2 + d];
             for(int d = 0; d < D; d++) Q += buff[d] * buff[d];
-	    double nu = log(betas[n]) + log(betas[col_P[i]]) - 2*log(beta_min); 
+	    double nu = 1+ log(betas[n]) + log(betas[col_P[i]]) - 2*log(beta_min); 
             Q = pow(1.0 + Q/nu, -(nu+1)/2.0) / sum_Q;
             C += val_P[i] * log((val_P[i] + FLT_MIN) / (Q + FLT_MIN));
         }
@@ -482,8 +497,11 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, double* P, doubl
 	    
 	    // KL-divergence b/w Gaussians downweighting
 	    
-	    P[nN+m] /= (.5*D*(log(largest_beta/betas[n])
-			      - 1 + betas[n]/largest_beta)+sums_P[n]);
+	    // P[nN+m] /= (.5*D*(log(largest_beta/betas[n])
+	    // - 1 + betas[n]/largest_beta)+sums_P[n]);
+
+	    // squared exponential downweighting
+	    P[nN+m] /= exp(-betas[n]/largest_beta)+sums_P[n]; 
 	    
 	    /*
 	    P[nN+m] /= (.5*D*(log(betas[n]/smallest_beta)
@@ -617,8 +635,9 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 
     for(unsigned int n=0; n<N; n++) {
       for(unsigned int m=0; m<K; m++) {
-	val_P[row_P[n] + m] /= (.5*D*(log(largest_beta/betas[n]) - 1 + betas[n]/largest_beta)
-				+sums_P[n]); 
+	val_P[row_P[n] + m] /= (.5*D*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
+	 			+ sums_P[n]);
+	// val_P[row_P[n]+m] /= (exp(-betas[n]/smallest_beta)+sums_P[n]);
       }
     } 
     

@@ -177,7 +177,11 @@ def bh_tsne(workdir, verbose=False):
             yield result
         # The last piece of data is the cost for each sample, we ignore it
         #read_unpack('{}d'.format(sample_count), output_file)
-
+    betas = np.loadtxt(path_join(workdir,'beta_file.txt'))
+    for b in betas:
+        yield b
+    
+    
 def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, thresh=0.1, randseed=-1, verbose=False, initial_dims=50, use_pca=True, max_iter=1000):
     '''
     Run TSNE based on the Barnes-HT algorithm
@@ -216,13 +220,21 @@ def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, thresh=0.1, randseed=
             print("This is an issue due to asynchronous error handling.")
 
         res = []
-        for result in bh_tsne(tmp_dir_path, verbose):
-            sample_res = []
-            for r in result:
-                sample_res.append(r)
-            res.append(sample_res)
+        betas = []
+        N, D = data.shape
+        
+        for ctr, result in enumerate(bh_tsne(tmp_dir_path, verbose)):
+
+            if ctr < N: 
+                sample_res = []
+                for r in result:
+                    sample_res.append(r)
+                res.append(sample_res)
+            else: 
+                betas.append(result)
+
         rmtree(tmp_dir_path)
-        return np.asarray(res, dtype='float64')
+        return np.asarray(res, dtype='float64'), np.asarray(betas, dtype='float64')
 
 
 def main(args):

@@ -387,6 +387,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
       // TO DO: Updated D to take into account the degrees of freedom
       // Ideally we should handle different DoF definitions
       double nu = 1+log(betas[point_index]) + log_beta_com - 2*log(overall_beta_min);
+      // double nu = (betas[point_index] + exp(log_beta_com))/(2.*overall_beta_min);
       double D_base = 1.0/(1.0 + D); 
       D = pow(1.0 + D/nu, -(nu+1)/2.0);
         double mult = cum_size * D;
