@@ -246,7 +246,7 @@ def main(args):
 
     argp = parser.parse_args(args[1:])
 
-    print argp
+    # print argp
     
     for result in run_bh_tsne(argp.input, no_dims=argp.no_dims, perplexity=argp.perplexity, theta=argp.theta, thresh=argp.thresh, randseed=argp.randseed,
             verbose=argp.verbose, initial_dims=argp.initial_dims, use_pca=argp.use_pca, max_iter=argp.max_iter):

@@ -15,15 +15,20 @@ from sklearn.decomposition import PCA
 # pc_data = pca.fit_transform(data)
 
 infile = sys.argv[1]
-outfile = sys.argv[2]
-betafile = sys.argv[3]
+# outfile = sys.argv[2]
+# betafile = sys.argv[3]
+if '.txt' in infile:
+    infile = infile[:infile.find('.txt')]
 
-pc_data = np.loadtxt(infile).T
+outfile = 'bh_da_' + infile + '_out.txt'
+betafile = 'bh_da_' + infile + '_betas.txt'
+
+pc_data = np.loadtxt(infile+'.txt').T
 
 print(pc_data.shape)
 
 embedded, betas = bh_da_sne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.3,
-                                        thresh=1.0, verbose=True, perplexity=50, max_iter=1000)
+                                        thresh=1.0, verbose=True, perplexity=50, max_iter=1000, use_pca=False)
 
 print embedded.shape, betas.shape
 np.savetxt(outfile , embedded)

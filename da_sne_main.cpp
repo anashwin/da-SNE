@@ -19,7 +19,9 @@ int main() {
     // Read the parameters and the dataset
     if(tsne->load_data(&data, &origN, &D, &no_dims, &theta, &beta_thresh, &perplexity, &rand_seed, &max_iter)) {
 		// Make dummy landmarks
-    
+
+      printf("data entry 0: %f,%f,%f\n", data[0], data[1], data[2]);
+      
     // Read the parameters and the dataset
         N = origN;
         int* landmarks = (int*) malloc(N * sizeof(int));

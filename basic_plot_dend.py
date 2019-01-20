@@ -18,15 +18,25 @@ def int2color(i):
 
 if len(sys.argv) > 1: 
     infile = sys.argv[1]
-    outfile = sys.argv[2]
+    # outfile = sys.argv[2]
+    outfile = infile[:infile.find('out')] + 'embedding.png'
 else:
     infile = 'bh_da_drastic_out.txt'
     outfile = 'bh_da_drastic_plot.png'
 
-pts = np.loadtxt(infile)
+if '.txt' in infile:
+    pts = np.loadtxt(infile)
+else: 
+    pts = np.loadtxt(infile+'.txt')
+    
 # pts = np.loadtxt('UMAP_test.txt')
 # pts = np.loadtxt('gaussian_density_drastic.txt').T
 # asgn = np.loadtxt('example_data/pollen_labels.txt', dtype=int)
+
+if 'bh_da' in infile:
+    flav = 'bh_da'
+else:
+    flav = 'bh'
 
 color_int = np.array([i/250 for i in xrange(len(pts))],dtype=int)
 # max_T = max(asgn)
@@ -41,13 +51,17 @@ color_int = np.array([i/250 for i in xrange(len(pts))],dtype=int)
 
 colors = map(int2color, color_int)
 
+flav_dict = {'bh_da':'Density-aware', 'bh':'Original'}
+
 fig, ax = plt.subplots(1,1)
+
+ax.set_title("Embedding: ({})".format(flav_dict[flav]))
 
 ax.scatter(pts[:,0], pts[:,1], c=colors)
 
 # ax.set_xlim(-60, 60)
 # ax.set_ylim(-100, 100)
 
-plt.show()
+# plt.show()
 
-# fig.savefig(outfile, bbox_inches='tight')
+fig.savefig('plots/' + outfile, bbox_inches='tight')

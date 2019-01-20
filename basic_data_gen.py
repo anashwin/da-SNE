@@ -2,17 +2,18 @@
 
 import numpy as np
 
+flavor = 'subset'
 D = 3
 
 K = 2
 
-sep = 1.
-means = np.array([[(-1)**(j+k)*k*sep for j in xrange(D)] for k in xrange(K)])
+sep = 100.
+# means = np.array([[(-1)**(j+k)*k*sep for j in xrange(D)] for k in xrange(K)])
 # means = np.array([[k*sep for j in xrange(D)] for k in xrange(K)])
 # means = np.array([[k for k in xrange(K)], [0 for k in xrange(K)], [0 for k in xrange(K)]]).T
-# means = np.zeros((K, D))
+means = np.zeros((K, D))
 
-growth = 10.
+growth = 2.
 base = .1
 
 vars = np.array([growth**i*base*np.eye(D) for i in xrange(K)])
@@ -36,4 +37,5 @@ for k in xrange(K):
     samples[ct:ct+N_pts[k]] = k_samples
     ct+=N_pts[k]
 
-np.savetxt('gd_K2_G10.txt', samples.T, delimiter='\t')
+np.savetxt('gd_D{:d}_K{:d}_G{:2.1f}_{:s}.txt'.format(D,K,growth,flavor),
+           samples.T, delimiter='\t')

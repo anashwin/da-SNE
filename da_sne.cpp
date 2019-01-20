@@ -209,6 +209,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     free(dY);
     free(uY);
     free(gains);
+    free(betas);
     if(exact) free(P);
     else {
         free(row_P); row_P = NULL;
@@ -412,8 +413,23 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, double* P, doubl
 	computeSquaredEuclideanDistance(X, N, D, DD);
 
 
-	double* sums_P = (double*)malloc(N*sizeof(double)); 
+	// Comparing our Euclidean distances:
+	int tempnN = 0;
+	double* avg_dist = (double*) malloc(N*sizeof(double)); 
+	for (int n=0; n<N; n++) {
+	  avg_dist[n] = 0.; 
+	  for (int m=0; m<N; m++) {
+	    avg_dist[n] += DD[tempnN+m];  
+	  }
+	  avg_dist[n] /= N;
+	  // printf("avg of n=%d: %f\n", n, avg_dist[n]);
+	  tempnN += N; 
+	} 
+
+	printf("0,300: %f\n", DD[300]);
+	printf("X1: %f, %f, %f; X2: %f, %f, %f\n", X[0], X[1], X[2], X[900], X[901], X[902]); 
 	
+	double* sums_P = (double*)malloc(N*sizeof(double)); 
 	// Compute the Gaussian kernel row by row
     int nN = 0;
 	for(int n = 0; n < N; n++) {
@@ -484,7 +500,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, double* P, doubl
 
         nN += N;
 	betas[n] = beta;
-	printf("beta: %f\n", beta);
+	// printf("beta: %f\n", beta);
 	if (beta < smallest_beta) smallest_beta = beta;
 	if (beta > largest_beta) largest_beta = beta; 
 	}
@@ -501,17 +517,17 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, double* P, doubl
 	    // - 1 + betas[n]/largest_beta)+sums_P[n]);
 
 	    // squared exponential downweighting
-	    P[nN+m] /= exp(-betas[n]/largest_beta)+sums_P[n]; 
+	    // P[nN+m] /= exp(-betas[n]/largest_beta)+sums_P[n]; 
 	    
-	    /*
+	    
 	    P[nN+m] /= (.5*D*(log(betas[n]/smallest_beta)
 			      - 1 + smallest_beta/betas[n]) + sums_P[n]); 
-	    */
+	    
 	    //P[nN+m] /= sums_P[n];
 	  }
 	    nN += N;
 
-	    printf("correction: %f\n", .5*D*(log(largest_beta/betas[n]) - 1 + betas[n]/largest_beta)); 
+	    // printf("correction: %f\n", .5*D*(log(largest_beta/betas[n]) - 1 + betas[n]/largest_beta)); 
 	  }
 
 	
