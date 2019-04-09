@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cmath>
+#include <ctime>
 #include "da_sptree.h"
 
 
@@ -159,12 +160,13 @@ void DA_SPTree::init(DA_SPTree* inp_parent, unsigned int D, double* inp_data, do
     no_children = 2;
     for(unsigned int d = 1; d < D; d++) no_children *= 2;
     data = inp_data;
+    
     betas = inp_betas; 
     is_leaf = true;
     size = 0;
     cum_size = 0;
 
-    overall_beta_min = beta_min; 
+    overall_beta_min = log(beta_min); 
     
     min_beta = DBL_MAX;
     max_beta = DBL_MIN; 
@@ -230,7 +232,7 @@ bool DA_SPTree::insert(unsigned int new_index)
     
     // update beta values
     log_beta_com = ((double) (cum_size - 1))/ ((double) cum_size) * log_beta_com
-      + 1.0/((double) cum_size) * log(beta); // New center of mass
+      + 1.0/((double) cum_size) * beta; // New center of mass
 
     if (beta < min_beta) min_beta = beta;
     if (beta > max_beta) max_beta = beta;
@@ -358,7 +360,7 @@ unsigned int DA_SPTree::getDepth() {
 
 
 // Compute non-edge forces using Barnes-Hut algorithm
-void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q)
+void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time)
 {
   
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -380,26 +382,65 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 
     // Check the beta condition as well:
     // if (!is_leaf) printf("beta ratio: %f\n", beta_ratio);
+
+    // if (max_width / sqrt(D) < theta) printf("ind: %i, thresh: %f\n", point_index, beta_ratio);
     
-    if(is_leaf || (max_width / sqrt(D) < theta && beta_ratio < beta_thresh)) {
-      
+    // if(is_leaf || (max_width / sqrt(D) < theta && beta_ratio < beta_thresh)) {
+    double beta = betas[point_index]; 
+
+    // LOGISTIC FUNCTION?
+    // -L/(1 + exp(-(beta/overall_beta_min-1)));
+
+    // -2*gap/(1 + exp(-(beta/overall_beta_min - 1))) + gap + init; 
+
+    double gap = 0.1; 
+    // double condition = -2*gap/(1 + exp(-.25*(beta))) + 2*gap + theta;
+    // if (is_leaf || (max_width / sqrt(D) < condition)) {
+    // if (is_leaf || (max_width / sqrt(D) < (1 + exp(overall_beta_min - beta))*theta)) { 
+      // if (is_leaf || (max_width / sqrt(D) < (1 + overall_beta_min/beta) * theta)) {
+      // if (is_leaf || (max_width / sqrt(D) < (1 + exp(-beta))*theta)) { 
+    if (is_leaf || (max_width / sqrt(D) < theta)) {
         // Compute and add t-SNE force between point and current node
       // TO DO: Updated D to take into account the degrees of freedom
       // Ideally we should handle different DoF definitions
-      double nu = 1+log(betas[point_index]) + log_beta_com - 2*log(overall_beta_min);
+
+      clock_t start = clock(); 
+      // double nu = (1 + atan(beta + log_beta_com));
+      double nu = 1 + beta + log_beta_com; 
+      // double nu = 1.; 
       // double nu = (betas[point_index] + exp(log_beta_com))/(2.*overall_beta_min);
-      double D_base = 1.0/(1.0 + D); 
-      D = pow(1.0 + D/nu, -(nu+1)/2.0);
-        double mult = cum_size * D;
-        *sum_Q += mult; // This is going to be Z
-        mult *= (nu+1)/nu*D_base;
+      
+      double D_base = 1.0/(1.0 + D/nu);
+      D = pow(1.0 + D/nu, (-(nu+1)/2.0));
+
+      // double D_base = 1./(1. + D);
+      // D = pow(1. + D, -nu/2.);
+      
+      // D = 1.0/(1 + nu *D); 
+      
+      /* 
+      D = 1.0;
+      for (int i=0; i<(int)((nu+1)/2.); i++) { 
+	D *= D_base;
+      }
+      */
+      
+      double mult = cum_size * D;
+      *sum_Q += mult; // This is going to be Z
+      mult *= (nu+1)/nu*D_base;
+      // mult *= nu/2. * D_base; 
+      // mult *= D_base; 
+      // mult *= nu*D; 
+      clock_t end = clock();
 	// printf("%f %f %f %f\n", neg_f[0], neg_f[1], mult, betas[point_index]); 
-        for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
+      for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
+      total_time += (float) (end - start) / CLOCKS_PER_SEC;
+      total_count ++; 
     }
     else {
 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q);
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q, total_count, total_time);
     }
 }
 
@@ -412,18 +453,25 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
     unsigned int ind1 = 0;
     unsigned int ind2 = 0;
     double D;
+    double nu; 
+    
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
-        
+
+	  // nu = (1. + atan(betas[n] + betas[col_P[i]]));
+	  // nu = 1.;
+	  nu = 1 + betas[n] + betas[col_P[i]]; 
             // Compute pairwise distance and Q-value
             D = 1.0;
             ind2 = col_P[i] * dimension;
             for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind1 + d] - data[ind2 + d];
-            for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
+            for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d]/nu;
             D = val_P[i] / D;
+	    // D = val_P[i] * pow(D, -(nu+1)/2.); 
 	    // printf("[%f, {%f, %f}]; ", D, buff[0], buff[1]); 
             // Sum positive force
-            for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
+            for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
+	    // for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }
         ind1 += dimension;
     }

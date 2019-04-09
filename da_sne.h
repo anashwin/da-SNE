@@ -43,7 +43,8 @@ class DA_SNE
 public:
   void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, double beta_thresh, int rand_seed,
              bool skip_random_init, int max_iter=1000, int stop_lying_iter=250, int mom_switch_iter=250);
-  bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* beta_thresh, double* perplexity, int* rand_seed, int* max_iter);
+  bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* beta_thresh, double* perplexity, int* rand_seed, int* max_iter, bool* init_Y);
+  bool load_Y(double** Y, int* n, int* d); 
     void save_data(double* data, int* landmarks, double* costs, int n, int d);
     void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
 
@@ -51,7 +52,8 @@ public:
 private:
     void computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P,
 			 double* Y, int N, int D, double* dC, double theta, double* betas, 
-			 double beta_min, double beta_max, double beta_thresh);
+			 double beta_min, double beta_max, double beta_thresh, int orig_D,
+			 double* self_loops, int& total_count, double& total_time);
     void computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas,
 			      double beta_min, double beta_max);
     double evaluateError(double* P, double* Y, int N, int D);
@@ -61,7 +63,7 @@ private:
     // Need to update the nearest neighbors P calculation too 
     void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
 				   unsigned int** _col_P, double** _val_P, double perplexity, int K,
-				   double* betas, double& smallest_beta, double& largest_beta);
+				   double* betas, double& smallest_beta, double& largest_beta, double* self_loops);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };

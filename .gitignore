@@ -9,6 +9,8 @@ bh_da_sne
 # ignore data files
 *.txt
 *.tsv
+*.npy
+*.csv
 
 # ignore auto-saved stuff
 *~

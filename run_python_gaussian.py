@@ -22,10 +22,13 @@ betafile = 'bh_' + infile + '_betas.txt'
 
 pc_data = np.loadtxt(infile+'.txt').T
 
+if pc_data.shape[0] < pc_data.shape[1]:
+    pc_data = pc_data.T
+
 print(pc_data.shape)
 
 embedded, betas = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.3,
-                              verbose=True, perplexity=30, max_iter=1000, use_pca=False)
+                              verbose=True, perplexity=50, max_iter=1000, use_pca=False)
 
 np.savetxt(outfile , embedded)
 np.savetxt(betafile, betas)

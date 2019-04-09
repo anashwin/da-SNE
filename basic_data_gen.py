@@ -2,16 +2,16 @@
 
 import numpy as np
 
-flavor = 'subset'
+flavor = 'drastic'
 D = 3
 
-K = 2
+K = 10
 
 sep = 100.
-# means = np.array([[(-1)**(j+k)*k*sep for j in xrange(D)] for k in xrange(K)])
+means = np.array([[(-1)**(j+k)*k*sep for j in xrange(D)] for k in xrange(K)])
 # means = np.array([[k*sep for j in xrange(D)] for k in xrange(K)])
 # means = np.array([[k for k in xrange(K)], [0 for k in xrange(K)], [0 for k in xrange(K)]]).T
-means = np.zeros((K, D))
+# means = np.zeros((K, D))
 
 growth = 2.
 base = .1
@@ -20,7 +20,7 @@ vars = np.array([growth**i*base*np.eye(D) for i in xrange(K)])
 
 # print type(means[0,:])
 
-N = 500
+N = 3000
 
 weights = np.array([1./K for k in xrange(K)])
 

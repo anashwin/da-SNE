@@ -24,42 +24,56 @@ def modify_sig(beta, beta_min, beta_max, delt):
         else: 
             return [(beta + beta_min)/2, beta_max, beta]
 
-if len(sys.argv) == 4:
-    infile = sys.argv[1]
-    orig = np.loadtxt(sys.argv[2]).T
-    betafile = sys.argv[3]
-elif len(sys.argv) == 3:
+if len(sys.argv) > 2:
     orig = sys.argv[1]
     flav = sys.argv[2]
+
+    if '.txt' in orig:
+        orig = orig[:orig.find('.txt')]
+    
     infile = flav + '_' + orig + '_out.txt'
     betafile = flav + '_' + orig + '_betas.txt'
-    orig = np.loadtxt(orig + '.txt').T
+    path = ''
     
 elif len(sys.argv) == 2:
     orig = sys.argv[1]
+    if '.txt' in orig:
+        orig = orig[:orig.find('.txt')]
+    
     infile = 'bh_da_' + orig + '_out.txt'
     betafile = 'bh_da_' + orig + '_betas.txt'
-    orig = np.loadtxt(orig + '.txt').T
+    path = '' 
     flav = 'bh_da'
     # infile = sys.argv[1]
     # betafile = 'bh_da_drastic_no-pca_betas.txt'
     # orig = np.loadtxt('gaussian_density_drastic.txt').T
-else:
-    infile = 'bh_da_drastic_no-pca_out.txt'
-    betafile = 'bh_da_drastic_no-pca_betas.txt'
-    orig = np.loadtxt('gaussian_density_drastic.txt').T
+
+if len(sys.argv) > 3:
+    path = sys.argv[3]
+
+orig = np.loadtxt(path + orig + '.txt')
+if orig.shape[0] < orig.shape[1]:
+    orig = orig.T
 
 plotfile = infile[:infile.find('out')] + 'plot.png'
+
+subsample = .25
 
 # orig = np.loadtxt('rect_K2_overlap.txt').T
 
 embedded = np.loadtxt(infile)
 N = embedded.shape[0]
 
+subsample_sz = int(subsample*N)
+indices = np.random.choice(N, subsample_sz, replace=False)
+orig = orig[indices,:]
+embedded = embedded[indices,:]
+
+
 # print np.array([sum(v1) for v1 in orig[:10]])
 means = np.mean(orig, axis=0)
 # print means
-orig = orig - np.vstack((means for _ in xrange(N)))
+orig = orig - np.vstack((means for _ in xrange(subsample_sz)))
 
 orig /= np.max(abs(orig))
 
@@ -84,6 +98,7 @@ orig_D[orig_D == 0.] = np.inf
 DD[orig_D == 0.] = np.inf
 
 betas = np.loadtxt(betafile)
+betas = betas[indices]
 # print betas
 
 P = np.exp(-betas*orig_D)
@@ -101,11 +116,11 @@ orig_radii = np.log(np.sum(P_sort[NNs:NNs+1,:],axis=0)/P_min)
 
 # print orig_radii
 
-taus = np.ones(N,dtype=float)
-taus_min = -DBL_MAX*np.ones(N,dtype=float)
-taus_max = DBL_MAX*np.ones(N,dtype=float)
-errors = np.ones(N,dtype=float)
-c_ent = np.log(NNs)*np.ones(N,dtype=float)
+taus = np.ones(subsample_sz,dtype=float)
+taus_min = -DBL_MAX*np.ones(subsample_sz,dtype=float)
+taus_max = DBL_MAX*np.ones(subsample_sz,dtype=float)
+errors = np.ones(subsample_sz,dtype=float)
+c_ent = np.log(NNs)*np.ones(subsample_sz,dtype=float)
 
 eps=1.e-6
 ctr=0
@@ -202,4 +217,5 @@ ax.set_ylabel('log(Embedded Density)')
 # ax.xaxis.label.set_fontweight('bold')
 # plt.xlim(0,50)
 
+plt.show()
 fig.savefig('plots/'+plotfile, bbox_inches='tight')

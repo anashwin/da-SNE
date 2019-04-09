@@ -61,6 +61,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
       }
     }
 
+    // printf("%.4f, %.4f\n", Y[10], Y[11]);
+    
     // Determine whether we are using an exact algorithm
     if(N - 1 < 3 * perplexity) { printf("Perplexity too large for the number of data points!\n"); exit(1); }
     printf("Using no_dims = %d, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
@@ -69,8 +71,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     // Set learning parameters
     float total_time = .0;
     clock_t start, end;
-	double momentum = .5, final_momentum = .8;
-	double eta = 200.0;
+    double momentum = .5, final_momentum = .8;
+    double eta = 200.0;
 
     // Allocate some memory
     double* dY    = (double*) malloc(N * no_dims * sizeof(double));
@@ -91,8 +93,11 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     for(int i = 0; i < N * D; i++) X[i] /= max_X;
 
     // Compute input similarities for exact t-SNE
-    double* P; unsigned int* row_P; unsigned int* col_P; double* val_P;
+    double* P; unsigned int* row_P; unsigned int* col_P; double* val_P; 
     double* betas = (double*) malloc(N*sizeof(double));
+    double* log_betas = (double*) malloc(N*sizeof(double)); 
+    double* self_loops = (double*) malloc(N*sizeof(double)); 
+    
     double min_beta;
     double max_beta; 
     if(exact) {
@@ -126,7 +131,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         // Compute asymmetric pairwise input similarities
         computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity,
 				  (int) (3 * perplexity),
-				  betas, min_beta, max_beta);
+				  betas, min_beta, max_beta, self_loops);
 
         // Symmetrize input similarities
         symmetrizeMatrix(&row_P, &col_P, &val_P, N);
@@ -142,6 +147,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     beta_file.open("beta_file.txt", fstream::out);
     if (beta_file.is_open()) {
     for (int n=0; n<N; n++) {
+      log_betas[n] = log(betas[n]/min_beta); 
       beta_file << betas[n] << "\n"; 
     } 
     beta_file.close();
@@ -160,35 +166,69 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 	// Perform main training loop
     if(exact) printf("Input similarities computed in %4.2f seconds!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC);
     else printf("Input similarities computed in %4.2f seconds (sparsity = %f)!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC, (double) row_P[N] / ((double) N * (double) N));
+
+
+    int sp_count = 0; 
+    double sp_time = 0.; 
+    double avg_time = 0.; 
+    
     start = clock();
 
 	for(int iter = 0; iter < max_iter; iter++) {
-
+	  // printf("Y = %.4f, %.4f\n", Y[10], Y[11]);
+	  
         // Compute (approximate) gradient
 	  if(exact) computeExactGradient(P, Y, N, no_dims, dY, betas, min_beta, max_beta);
-	  else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta, betas,
-			       min_beta, max_beta, beta_thresh);
+	  else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta, log_betas,
+			       min_beta, max_beta, beta_thresh, D, self_loops, sp_count, sp_time);
 
+	  /*
+	  for (int i=1500; i<1550; i++) {
+	    printf("Beta = %f\n AND min_beta = %f\n", log_betas[i], log(min_beta)); 
+	    for (int j=100; j<110; j++) {
+	      printf("Nu = %f\n", 1 + (log_betas[i] + log_betas[j]));
+	    } 
+	  } 
+	  */
         // Update gains
-        for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
+        for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .1) : (gains[i] * .3);
         for(int i = 0; i < N * no_dims; i++) if(gains[i] < .01) gains[i] = .01;
 
         // Perform gradient update (with momentum and gains)
         for(int i = 0; i < N * no_dims; i++) uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-		for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
+	for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
 
         // Make solution zero-mean
-		zeroMean(Y, N, no_dims);
+	zeroMean(Y, N, no_dims);
 
         // Stop lying about the P-values after a while, and switch momentum
         if(iter == stop_lying_iter) {
             if(exact) { for(int i = 0; i < N * N; i++)        P[i] /= 12.0; }
             else      { for(int i = 0; i < row_P[N]; i++) val_P[i] /= 12.0; }
+	    /*
+	    else {
+	      for(int row=0; row<N; row++) {
+		for(int j=row_P[row]; j < row_P[row+1]; j++) {
+		  // val_P[j] /= (12.0 * (self_loops[row] + .0001));
+		  val_P[j] *= (self_loops[row] + .0001)/12.0; 
+		} 
+	      } 
+	    } 
+	    /*
+	    else      {
+	      int row_ind = 0; 
+	      for(int i = 0; i < row_P[N]; i++) {
+		if (row_P[row_ind + 1] == i) row_ind++; 
+		val_P[i] /= (12.0 * self_loops[row_ind]);
+	      }
+	    }
+	    */
+	    
         }
         if(iter == mom_switch_iter) momentum = final_momentum;
 
         // Print out progress
-        if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
+        if (iter >= 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
             end = clock();
             double C = .0;
             if(exact) C = evaluateError(P, Y, N, no_dims);
@@ -199,8 +239,16 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
             else {
                 total_time += (float) (end - start) / CLOCKS_PER_SEC;
                 printf("Iteration %d: error is %f (50 iterations in %4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
+
+		printf("Average depth: %f\n", ((double) sp_count)/(50*N));
+		printf("Power computation time: %f\n",
+		       sp_time/(((double) sp_count)/100000.)); 
+		
             }
-			start = clock();
+	    sp_count = 0;
+	    sp_time = 0.; 
+	    
+	    start = clock();
         }
     }
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
@@ -210,6 +258,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     free(uY);
     free(gains);
     free(betas);
+    free(log_betas); 
+    free(self_loops); 
     if(exact) free(P);
     else {
         free(row_P); row_P = NULL;
@@ -223,7 +273,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
 void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, 
 			     double* Y, int N, int D, double* dC, double theta,
-			     double* betas, double beta_min, double beta_max, double beta_thresh)
+			     double* betas, double beta_min, double beta_max, double beta_thresh, int orig_D,
+			     double* self_loops, int& total_count, double& total_time)
 {
 
   // for(int n=0; n<N; n++) {
@@ -236,22 +287,25 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double sum_Q = .0;
 
     for (int n=0; n<N; n++) {
-      double beta = betas[n];
-      sum_Q += 1.5*((beta_max/beta) - 1 + log(beta/beta_max));
-      // sum_Q += exp(-beta/beta_min); 
+      // double beta = betas[n];
+      // sum_Q += .5*((beta_max/beta) - 1 + log(beta/beta_max))/(N);
+      // sum_Q += exp(-beta/beta_min);
+      sum_Q = .0;
+      // sum_Q += self_loops[n]/log(N);
     } 
+    
     
     double* pos_f = (double*) calloc(N * D, sizeof(double));
     double* neg_f = (double*) calloc(N * D, sizeof(double));
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
     for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
-							  &sum_Q);
-
+							  &sum_Q, total_count, total_time);
+    
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
-        dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
-		
+      // dC[i] = betas[(int)(i/D)]*pos_f[i] - (neg_f[i] / sum_Q);
+      dC[i] = pos_f[i] - (neg_f[i] / sum_Q); 
     }
     /*
     printf("dC: %f; pos_f: %f; neg_f: %f; sum_Q: %f\n",dC[0], pos_f[0], neg_f[0],
@@ -280,8 +334,9 @@ void DA_SNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC
 
     // Here we take into account the diagonals?
     for(int n=0; n<N; n++) {
-      sum_Q += 1.5*(log(beta_max/betas[n]) - 1 + betas[n]/beta_max);
-      // sum_Q += exp(-betas[n]/beta_max); 
+      sum_Q += 1.5*(beta_min/betas[n] - 1 + log(betas[n]/beta_min));
+      // sum_Q += exp(-betas[n]/beta_max);
+      sum_Q = .0; 
      } 
     
     int nN = 0;
@@ -290,13 +345,14 @@ void DA_SNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC
 
             if(n != m) {
 
-	      double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
-	      // double nu = (betas[n] + betas[m])/(2.*beta_min);
+	      // double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
+	      double nu = (betas[n] + betas[m])/(2.*beta_min);
 	      
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // printf("nu = %f\n", nu);
 	      // nu = 1; 
-                Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu+1)/2.);
+	      // Q[nN + m] = pow(1 + DD[nN + m]/nu,-(nu+1)/2.);
+	      Q[nN + m] = 1.0/(1 + nu*DD[nN+m]); 
                 sum_Q += Q[nN + m];
             }
         }
@@ -311,12 +367,12 @@ void DA_SNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC
     	for(int m = 0; m < N; m++) {
             if(n != m) {
 
-	      double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
-	      // double nu = (betas[n] + betas[m])/(2.*beta_min); 
+	      // double nu = 1+log(betas[n]) + log(betas[m]) - 2*log(beta_min);
+	      double nu = (betas[n] + betas[m])/(2.*beta_min); 
 
 	      // double t_scale = betas[m]*betas[n]/(beta_min*(betas[m] + betas[n])); 
 	      // nu = 1; 
-	      double mult = (P[nN + m] - (Q[nN + m] / sum_Q))/(1+DD[nN+m]/nu);
+	      double mult = nu*(P[nN + m] - (Q[nN + m] / sum_Q))/(1+DD[nN+m]*nu);
                 for(int d = 0; d < D; d++) {
                     dC[nD + d] += (Y[nD + d] - Y[mD + d]) * mult;
                 }
@@ -375,9 +431,14 @@ double DA_SNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* v
 
     // Get estimate of normalization term
   DA_SPTree* tree = new DA_SPTree(D, Y, betas, beta_min, N);
+
+
+  int foo1;
+  double foo2; 
+  
     double* buff = (double*) calloc(D, sizeof(double));
     double sum_Q = .0;
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, buff, &sum_Q);
+    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, buff, &sum_Q, foo1, foo2);
 
     // Loop over all edges to compute t-SNE error
     int ind1, ind2;
@@ -390,7 +451,7 @@ double DA_SNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* v
             for(int d = 0; d < D; d++) buff[d]  = Y[ind1 + d];
             for(int d = 0; d < D; d++) buff[d] -= Y[ind2 + d];
             for(int d = 0; d < D; d++) Q += buff[d] * buff[d];
-	    double nu = 1+ log(betas[n]) + log(betas[col_P[i]]) - 2*log(beta_min); 
+	    double nu = (int) (log(betas[n]) + log(betas[col_P[i]]) - 2*log(beta_min));
             Q = pow(1.0 + Q/nu, -(nu+1)/2.0) / sum_Q;
             C += val_P[i] * log((val_P[i] + FLT_MIN) / (Q + FLT_MIN));
         }
@@ -520,8 +581,8 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, double* P, doubl
 	    // P[nN+m] /= exp(-betas[n]/largest_beta)+sums_P[n]; 
 	    
 	    
-	    P[nN+m] /= (.5*D*(log(betas[n]/smallest_beta)
-			      - 1 + smallest_beta/betas[n]) + sums_P[n]); 
+	    P[nN+m] /= (.5*D*(log(betas[n]/largest_beta)
+			      - 1 + largest_beta/betas[n]) + sums_P[n]); 
 	    
 	    //P[nN+m] /= sums_P[n];
 	  }
@@ -541,7 +602,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, double* P, doubl
 void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
 				       unsigned int** _col_P, double** _val_P, double perplexity,
 				       int K, double* betas, double& smallest_beta,
-				       double& largest_beta)
+				       double& largest_beta, double* self_loops)
 {
     if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
@@ -649,12 +710,30 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
         }
     }
 
+    double max_ratio = log(largest_beta/smallest_beta); 
     for(unsigned int n=0; n<N; n++) {
+      // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(log(betas[n]/smallest_beta)*D));
+      // double extra_term = log(betas[n]/smallest_beta)/N;
+      // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(D));
+      // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
+      double extra_term = log(betas[n]/smallest_beta) / max_ratio;
+      
       for(unsigned int m=0; m<K; m++) {
-	val_P[row_P[n] + m] /= (.5*D*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
-	 			+ sums_P[n]);
+
+	// self_loops[n] = (extra_term < 10*sums_P[n]) ? extra_term : 10*sums_P[n];
+	// self_loops[n] = (extra_term < 12.0) ? extra_term : 12.0; 
+	self_loops[n] = extra_term;
+	// self_loops[n] = 0.;
+
+	val_P[row_P[n] + m] *= 12.0* self_loops[n]/ sums_P[n]; 
+	// val_P[row_P[n] + m] /=  (self_loops[n] + sums_P[n]);
+	// self_loops[n] = sums_P[n] / (self_loops[n] + sums_P[n]); 
+	// val_P[row_P[n] + m] *= (12.0 + self_loops[n])/sums_P[n];
+	// val_P[row_P[n] + m] *= 12.0 + self_loops[n]; 
 	// val_P[row_P[n]+m] /= (exp(-betas[n]/smallest_beta)+sums_P[n]);
+	
       }
+      // printf("sum = %.4f, out of %.4f\n", self_loops[n], sums_P[n]); 
     } 
     
     // Clean up memory
@@ -817,7 +896,8 @@ double DA_SNE::randn() {
 
 // Function that loads data from a t-SNE file
 // Note: this function does a malloc that should be freed elsewhere
-bool DA_SNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* beta_thresh, double* perplexity, int* rand_seed, int* max_iter) {
+bool DA_SNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* beta_thresh, double* perplexity, int* rand_seed, int* max_iter,
+		       bool* init_Y) {
 
 	// Open file, read first 2 integers, allocate memory, and read the data
     FILE *h;
@@ -832,7 +912,8 @@ bool DA_SNE::load_data(double** data, int* n, int* d, int* no_dims, double* thet
 	fread(perplexity, sizeof(double), 1, h);								// perplexity
 	fread(no_dims, sizeof(int), 1, h);                                      // output dimensionality
     fread(max_iter, sizeof(int),1,h);                                       // maximum number of iterations
-	*data = (double*) malloc(*d * *n * sizeof(double));
+    fread(init_Y, sizeof(bool),1,h); // Is there a Y to be loaded? 
+    *data = (double*) malloc(*d * *n * sizeof(double));
     if(*data == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     fread(*data, sizeof(double), *n * *d, h);                               // the data
     
@@ -841,6 +922,26 @@ bool DA_SNE::load_data(double** data, int* n, int* d, int* no_dims, double* thet
 	printf("Read the %i x %i data matrix successfully!\n", *n, *d);
 	return true;
 }
+
+bool DA_SNE::load_Y(double** Y, int* n, int* d) {
+
+  FILE *h;
+  if ((h = fopen("Y_init.dat", "r+b")) == NULL) {
+    printf("Error: could not open Y init file.\n");
+    return false; 
+  }
+  fread(n, sizeof(int), 1, h);
+  fread(d, sizeof(int), 1, h);
+
+  *Y = (double*) malloc(*d * *n * sizeof(double));
+  if(*Y == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+
+  fread(*Y, sizeof(double), *n * *d, h);
+  fclose(h);
+  printf("Read the %i x %i initial out matrix successfully!\n", *n, *d); 
+  return true; 
+  
+} 
 
 // Function that saves map to a t-SNE file
 void DA_SNE::save_data(double* data, int* landmarks, double* costs, int n, int d) {
