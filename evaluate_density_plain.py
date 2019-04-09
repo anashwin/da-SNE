@@ -187,10 +187,10 @@ radii = np.sum(Q_sort[NNs:NNs+1,:],axis=0)
 lg_dist = np.log(avg_dist)
 lg_emb_dist = np.log(avg_embedded_dist)
 
-plt.scatter(orig_radii, np.log(radii), s=4)
+# plt.scatter(orig_radii, np.log(radii), s=4)
 
-plt.show()
-plt.clf()
+# plt.show()
+# plt.clf()
 
 color_dict = {'bh':'green', 'bh_da':'blue', 'notails':'orange', 'bh_da_init':'magenta'}
 
