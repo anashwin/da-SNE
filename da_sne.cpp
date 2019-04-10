@@ -180,7 +180,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         // Compute (approximate) gradient
 	  if(exact) computeExactGradient(P, Y, N, no_dims, dY, betas, min_beta, max_beta);
 	  else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta, log_betas,
-			       min_beta, max_beta, beta_thresh, D, self_loops, sp_count, sp_time);
+			       min_beta, max_beta, beta_thresh, D, self_loops, sp_count, sp_time,
+			       iter < stop_lying_iter);
 
 	  /*
 	  for (int i=1500; i<1550; i++) {
@@ -274,7 +275,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, 
 			     double* Y, int N, int D, double* dC, double theta,
 			     double* betas, double beta_min, double beta_max, double beta_thresh, int orig_D,
-			     double* self_loops, int& total_count, double& total_time)
+			     double* self_loops, int& total_count, double& total_time,
+			     bool lying)
 {
 
   // for(int n=0; n<N; n++) {
@@ -298,9 +300,15 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* pos_f = (double*) calloc(N * D, sizeof(double));
     double* neg_f = (double*) calloc(N * D, sizeof(double));
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
-							  &sum_Q, total_count, total_time);
+    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
+    if (lying) { 
+      for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
+							    &sum_Q, total_count, total_time);
+    }
+    else {
+      for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D,
+							    &sum_Q, total_count, total_time);
+    }
     
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
@@ -725,7 +733,9 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	self_loops[n] = extra_term;
 	// self_loops[n] = 0.;
 
-	val_P[row_P[n] + m] *= 12.0* self_loops[n]/ sums_P[n]; 
+	// val_P[row_P[n] + m] *= 12.0/(self_loops[n] + sums_P[n]); 
+	val_P[row_P[n] + m] *= 12.0* self_loops[n]/ sums_P[n];
+	// val_P[row_P[n] + m] *= 12.0/ sums_P[n]; 
 	// val_P[row_P[n] + m] /=  (self_loops[n] + sums_P[n]);
 	// self_loops[n] = sums_P[n] / (self_loops[n] + sums_P[n]); 
 	// val_P[row_P[n] + m] *= (12.0 + self_loops[n])/sums_P[n];

@@ -53,7 +53,7 @@ private:
     void computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P,
 			 double* Y, int N, int D, double* dC, double theta, double* betas, 
 			 double beta_min, double beta_max, double beta_thresh, int orig_D,
-			 double* self_loops, int& total_count, double& total_time);
+			 double* self_loops, int& total_count, double& total_time, bool lying);
     void computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas,
 			      double beta_min, double beta_max);
     double evaluateError(double* P, double* Y, int N, int D);

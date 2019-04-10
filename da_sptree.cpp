@@ -359,7 +359,7 @@ unsigned int DA_SPTree::getDepth() {
 }
 
 
-// Compute non-edge forces using Barnes-Hut algorithm
+// Compute non-edge forces using Barnes-Hut algorithm (with the full DA_SNE algorithm)
 void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time)
 {
   
@@ -444,23 +444,66 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
     }
 }
 
+// Compute non-edge forces using Barnes-Hut algorithm (original t-SNE)
+void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[],
+				     double* sum_Q, int& total_count, double& total_time)
+{
+    
+    // Make sure that we spend no time on empty nodes or self-interactions
+    if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
+    
+    // Compute distance between point and center-of-mass
+    double D = .0;
+    unsigned int ind = point_index * dimension;
+    for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind + d] - center_of_mass[d];
+    for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
+    
+    // Check whether we can use this node as a "summary"
+    double max_width = 0.0;
+    double cur_width;
+    for(unsigned int d = 0; d < dimension; d++) {
+        cur_width = boundary->getWidth(d);
+        max_width = (max_width > cur_width) ? max_width : cur_width;
+    }
+    if(is_leaf || max_width / sqrt(D) < theta) {
+    
+        // Compute and add t-SNE force between point and current node
+      clock_t start = clock();
+        D = 1.0 / (1.0 + D);
+        double mult = cum_size * D;
+        *sum_Q += mult;
+        mult *= D;
+	clock_t end = clock(); 
+        for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
+	total_time += (float) (end - start) / CLOCKS_PER_SEC;
+	total_count++; 
+    }
+    else {
+
+        // Recursively apply Barnes-Hut to children
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time);
+    }
+}
+
 
 // Computes edge forces
-void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f)
+void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying)
 {
     
     // Loop over all edges in the graph
     unsigned int ind1 = 0;
     unsigned int ind2 = 0;
     double D;
-    double nu; 
+    double nu = 1.; 
     
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
+	  if (lying) { 
+	    // nu = (1. + atan(betas[n] + betas[col_P[i]]));
 
-	  // nu = (1. + atan(betas[n] + betas[col_P[i]]));
 	  // nu = 1.;
-	  nu = 1 + betas[n] + betas[col_P[i]]; 
+	    nu = 1 + betas[n] + betas[col_P[i]];
+	  }
             // Compute pairwise distance and Q-value
             D = 1.0;
             ind2 = col_P[i] * dimension;
@@ -470,7 +513,9 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
 	    // D = val_P[i] * pow(D, -(nu+1)/2.); 
 	    // printf("[%f, {%f, %f}]; ", D, buff[0], buff[1]); 
             // Sum positive force
-            for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
+            for(unsigned int d = 0; d < dimension; d++) {
+	      pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
+	    }
 	    // for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }
         ind1 += dimension;
