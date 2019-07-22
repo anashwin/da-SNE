@@ -1,5 +1,7 @@
 This software package will hopefully contain a density-aware modification of the Barnes-Hut implementation of t-SNE by Van Der Maaten
 
+Code is very much in beta stage, I am still making it more easily usable and most functionality is undocumented. 
+
 All of the following is adapted from Van Der Maaten's repository: https://github.com/lvdmaaten/bhtsne
 
 # Installation #
@@ -14,10 +16,6 @@ The executable will be called `bh_da_sne`.
 
 # Usage #
 
-
-gscatter(map(:,1), map(:,2), labels');
-```
-
 Demonstration of usage in Python:
 
 ```python
@@ -26,32 +24,15 @@ import bh_da_sne
 
 data = np.loadtxt("mnist2500_X.txt", skiprows=1)
 
-embedding_array = bh_da_sne.run_bh_tsne(data, initial_dims=data.shape[1])
+embedding_array = bh_da_sne.run_bh_tsne(data, initial_dims=data.shape[1], theta=.3,
+verbose=True, perplexity=50, max_iter = 1000, use_pca=True, Y_samples=None)
+```
+You can also use my pre-wrtten wrapper:
+
+```
+python run_da_python.py input.txt
 ```
 
-### Python Wrapper
-
-Usage:
-
-```bash
-python bh_da_sne.py [-h] [-d NO_DIMS] [-p PERPLEXITY] [-t THETA] [-e THRESH] 
-                  [-r RANDSEED] [-n INITIAL_DIMS] [-v] [-i INPUT]
-                  [-o OUTPUT] [--use_pca] [--no_pca] [-m MAX_ITER]
-```
-
-Below are the various options the wrapper program `bhtsne.py` expects:
-
-- `-h, --help`                      show this help message and exit
-- `-d NO_DIMS, --no_dims`           NO_DIMS
-- `-p PERPLEXITY, --perplexity`     PERPLEXITY
-- `-t THETA, --theta`               THETA
-- `-e THRESH, --thresh`             threshold for betas 
-- `-r RANDSEED, --randseed`         RANDSEED
-- `-n INITIAL_DIMS, --initial_dims` INITIAL_DIMS
-- `-v, --verbose`
-- `-i INPUT, --input`               INPUT: the input file, expects a TSV with the first row as the header.
-- `-o OUTPUT, --output`             OUTPUT: A TSV file having each row as the `d` dimensional embedding.
-- `--use_pca`
-- `--no_pca`
-- `-m MAX_ITER, --max_iter`         MAX_ITER
-
+which will generate the embedding into the file `bh_dagrad_input_out.txt'; the length-scales
+will be in `bh_dagrad_input_betas.txt', the original and embedded local radii will be
+saved as `bh_deagrad_input_orig_margD.txt` and `bh_dagrad_input_orig_embD.txt` respectively. 

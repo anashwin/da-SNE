@@ -81,7 +81,6 @@ def _argparse():
     # 0.0 for theta is equivalent to vanilla t-SNE
     argparse.add_argument('-t', '--theta', type=float, default=DEFAULT_THETA)
     argparse.add_argument('-e', '--thresh', type=float, default=DEFAULT_THRESH)
-    argparse.add_argument('-y', '--y_samples', type=Filetype('r'), default=stdin)
     argparse.add_argument('-r', '--randseed', type=int, default=EMPTY_SEED)
     argparse.add_argument('-n', '--initial_dims', type=int, default=INITIAL_DIMENSIONS)
     argparse.add_argument('-v', '--verbose', action='store_true')
@@ -92,6 +91,8 @@ def _argparse():
     argparse.add_argument('--no_pca', dest='use_pca', action='store_false')
     argparse.set_defaults(use_pca=DEFAULT_USE_PCA)
     argparse.add_argument('-m', '--max_iter', type=int, default=DEFAULT_MAX_ITERATIONS)
+    argparse.add_argument('-y', '--y_init', type=FileType('r'), default=None)
+    argparse.add_argument('-w', '--weight', type=float, default=1.0)
     return argparse
 
 
@@ -108,8 +109,10 @@ def _is_filelike_object(f):
 
 
 def init_bh_tsne(samples, workdir, no_dims=DEFAULT_NO_DIMS, initial_dims=INITIAL_DIMENSIONS, perplexity=DEFAULT_PERPLEXITY,
-                 theta=DEFAULT_THETA, thresh=DEFAULT_THRESH, randseed=EMPTY_SEED, verbose=False, use_pca=DEFAULT_USE_PCA, max_iter=DEFAULT_MAX_ITERATIONS):
-
+                 theta=DEFAULT_THETA, thresh=DEFAULT_THRESH, randseed=EMPTY_SEED, verbose=False, use_pca=DEFAULT_USE_PCA, max_iter=DEFAULT_MAX_ITERATIONS,
+                 Y_samples=None, weight = 1.0):
+    initY = (Y_samples is not None)
+    
     if use_pca:
         samples = samples - np.mean(samples, axis=0)
         cov_x = np.dot(np.transpose(samples), samples)
@@ -130,12 +133,16 @@ def init_bh_tsne(samples, workdir, no_dims=DEFAULT_NO_DIMS, initial_dims=INITIAL
     sample_dim = len(samples[0])
     sample_count = len(samples)
 
+    if initY:
+        Y_dim = len(Y_samples[0])
+    
     # Note: The binary format used by bh_tsne is roughly the same as for
     #   vanilla tsne
 
     with open(path_join(workdir, 'data.dat'), 'wb') as data_file:
         # Write the bh_tsne header
-        data_file.write(pack('iidddii', sample_count, sample_dim, theta, thresh, perplexity, no_dims, max_iter))
+        data_file.write(pack('iiddddii?', sample_count, sample_dim, theta, thresh, perplexity, 
+                             weight, no_dims, max_iter, initY))
         # Then write the data
         for sample in samples:
             data_file.write(pack('{}d'.format(len(sample)), *sample))
@@ -143,6 +150,12 @@ def init_bh_tsne(samples, workdir, no_dims=DEFAULT_NO_DIMS, initial_dims=INITIAL
         if randseed != EMPTY_SEED:
             data_file.write(pack('i', randseed))
 
+    if initY:
+        with open(path_join(workdir, 'Y_init.dat'), 'wb') as Y_file:
+            Y_file.write(pack('ii', sample_count, Y_dim))
+            for s in Y_samples:
+                Y_file.write(pack('{}d'.format(len(s)), *s))
+            
 def load_data(input_file):
     # Read the data, using numpy's good judgement
     return np.loadtxt(input_file)
@@ -183,7 +196,7 @@ def bh_tsne(workdir, verbose=False):
         yield b
     
     
-def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, thresh=1000, randseed=-1, verbose=False, initial_dims=50, use_pca=True, max_iter=1000):
+def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, thresh=1000, randseed=-1, verbose=False, initial_dims=50, use_pca=True, max_iter=1000, Y_samples=None, weight = 1.0):
     '''
     Run TSNE based on the Barnes-HT algorithm
 
@@ -211,7 +224,7 @@ def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, thresh=1000, randseed
         if _is_filelike_object(data):
             data = load_data(data)
 
-        init_bh_tsne(data, tmp_dir_path, no_dims=no_dims, perplexity=perplexity, theta=theta, thresh=thresh, randseed=randseed,verbose=verbose, initial_dims=initial_dims, use_pca=use_pca, max_iter=max_iter)
+        init_bh_tsne(data, tmp_dir_path, no_dims=no_dims, perplexity=perplexity, theta=theta, thresh=thresh, randseed=randseed,verbose=verbose, initial_dims=initial_dims, use_pca=use_pca, max_iter=max_iter, Y_samples=Y_samples, weight = weight)
         sys.exit(0)
     else:
         try:
@@ -222,21 +235,27 @@ def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, thresh=1000, randseed
 
         res = []
         betas = []
+        orig_densities = []
+        emb_densities = []
         N, D = data.shape
         
         for ctr, result in enumerate(bh_tsne(tmp_dir_path, verbose)):
-
             if ctr < N: 
                 sample_res = []
                 for r in result:
                     sample_res.append(r)
                 res.append(sample_res)
-            else: 
+            elif ctr < 2*N: 
                 betas.append(result)
-
+            elif ctr < 3*N:
+                orig_densities.append(result)
+            else:
+                emb_densities.append(result)
+                
         rmtree(tmp_dir_path)
-        return np.asarray(res, dtype='float64'), np.asarray(betas, dtype='float64')
-
+        return (np.asarray(res, dtype='float64'), np.asarray(betas, dtype='float64'),
+                np.asarray(orig_densities, dtype='float64'),
+                np.asarray(emb_densities, dtype='float64'))
 
 def main(args):
     parser = _argparse()
@@ -248,9 +267,12 @@ def main(args):
     argp = parser.parse_args(args[1:])
 
     # print argp
-    
-    for result in run_bh_tsne(argp.input, no_dims=argp.no_dims, perplexity=argp.perplexity, theta=argp.theta, thresh=argp.thresh, randseed=argp.randseed,
-            verbose=argp.verbose, initial_dims=argp.initial_dims, use_pca=argp.use_pca, max_iter=argp.max_iter):
+    data = np.loadtxt(argp.input)
+    for result in run_bh_tsne(data, no_dims=argp.no_dims, perplexity=argp.perplexity,
+                              theta=argp.theta, thresh=argp.thresh, randseed=argp.randseed,
+                              verbose=argp.verbose, initial_dims=argp.initial_dims,
+                              use_pca=argp.use_pca, max_iter=argp.max_iter,
+                              Y_samples=argp.y_init, weight=argp.weight):
         fmt = ''
         for i in range(1, len(result)):
             fmt = fmt + '{}\t'
