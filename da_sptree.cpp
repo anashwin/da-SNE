@@ -36,10 +36,10 @@
 #include <stdio.h>
 #include <cmath>
 #include <ctime>
+#include "cell.h"
 #include "da_sptree.h"
 
-
-
+/*
 // Constructs cell
 Cell::Cell(unsigned int inp_dimension) {
     dimension = inp_dimension;
@@ -86,7 +86,7 @@ bool Cell::containsPoint(double point[])
     }
     return true;
 }
-
+*/
 
 // Default constructor for DA_SPTree -- build tree, too!
 DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N)
@@ -119,7 +119,6 @@ DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double
     free(min_Y);
     free(width);
 }
-
 
 // Constructor for DA_SPTree with particular size and parent -- build the tree, too!
 DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width)
@@ -166,6 +165,7 @@ void DA_SPTree::init(DA_SPTree* inp_parent, unsigned int D, double* inp_data, do
     size = 0;
     cum_size = 0;
 
+    log_beta_com = 0.; 
     overall_beta_min = log(beta_min); 
     
     min_beta = DBL_MAX;
@@ -357,10 +357,39 @@ unsigned int DA_SPTree::getDepth() {
     for(unsigned int i = 0; i < no_children; i++) depth = fmax(depth, children[i]->getDepth());
     return 1 + depth;
 }
+/*
+// Compute the local densities
+void DA_SPTree::computeDensityForces(unsigned int point_index, double theta, double neg_f[],
+				     double* sum_Q, int& total_count, double& total_time,
+				     double& emb_density) { 
+// Make sure that we spend no time on empty nodes or self-interactions
+    if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
+    
+    // Compute distance between point and center-of-mass
+    double D = .0;
+    unsigned int ind = point_index * dimension;
+    for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind + d] - center_of_mass[d];
+    for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
+    
+    // Check whether we can use this node as a "summary"
+    double max_width = 0.0;
+    double cur_width;
+    for(unsigned int d = 0; d < dimension; d++) {
+        cur_width = boundary->getWidth(d);
+        max_width = (max_width > cur_width) ? max_width : cur_width;
+    }
 
+    if(is_leaf || max_width / sqrt(D) < theta) {
+      double dist = sqrt(D);
+      D = 1.0 / (1.0 + D);
+      *sum_Q += mult; 
+    } 
+
+} 
+*/
 
 // Compute non-edge forces using Barnes-Hut algorithm (with the full DA_SNE algorithm)
-void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time)
+void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density)
 {
   
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -403,7 +432,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
         // Compute and add t-SNE force between point and current node
       // TO DO: Updated D to take into account the degrees of freedom
       // Ideally we should handle different DoF definitions
-
+      double dist = sqrt(D); 
       clock_t start = clock(); 
       // double nu = (1 + atan(beta + log_beta_com));
       double nu = 1 + beta + log_beta_com; 
@@ -427,6 +456,8 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
       
       double mult = cum_size * D;
       *sum_Q += mult; // This is going to be Z
+      emb_density += mult*dist;
+      // emb_density += mult; 
       mult *= (nu+1)/nu*D_base;
       // mult *= nu/2. * D_base; 
       // mult *= D_base; 
@@ -440,13 +471,14 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
     else {
 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q, total_count, total_time);
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q, total_count, total_time, emb_density);
     }
 }
 
 // Compute non-edge forces using Barnes-Hut algorithm (original t-SNE)
 void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[],
-				     double* sum_Q, int& total_count, double& total_time)
+				     double* sum_Q, int& total_count, double& total_time,
+				     double& emb_density)
 {
     
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -466,12 +498,14 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
         max_width = (max_width > cur_width) ? max_width : cur_width;
     }
     if(is_leaf || max_width / sqrt(D) < theta) {
-    
+      double dist = sqrt(D); 
         // Compute and add t-SNE force between point and current node
       clock_t start = clock();
         D = 1.0 / (1.0 + D);
         double mult = cum_size * D;
         *sum_Q += mult;
+	emb_density += mult*dist;
+	// emb_density += mult; 
         mult *= D;
 	clock_t end = clock(); 
         for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
@@ -481,7 +515,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
     else {
 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time);
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time, emb_density);
     }
 }
 

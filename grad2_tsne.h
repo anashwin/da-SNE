@@ -31,14 +31,14 @@
  */
 
 
-#ifndef TSNE_H
-#define TSNE_H
+#ifndef GRAD_TSNE_H
+#define GRAD_TSNE_H
 
 
 static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
 
 
-class TSNE
+class Grad_TSNE
 {
 public:
     void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
@@ -49,14 +49,14 @@ public:
 
 
 private:
-    void computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta, double* orig_densities, 
-			 int& sp_count, double& sp_time);
-    void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
-    double evaluateError(double* P, double* Y, int N, int D);
+    void computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta);
+    void computeExactGradient(double* P, double* log_rho, double sum_logrho, double var_rho, double* Y, int N, int D, double* dC);
+    double evaluateError(double* P, double* Y, int N, int D, double* log_rho, double sum_logrho,
+			 double var_rho);
     double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta);
     void zeroMean(double* X, int N, int D);
-    void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity);
-    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas, double* orig_densities);
+    void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity, double* betas, double* log_rho);
+    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };

@@ -35,8 +35,7 @@
 #define SPTREE_H
 
 using namespace std;
-
-
+/*
 class Cell {
 
     unsigned int dimension;
@@ -55,7 +54,8 @@ public:
     void setWidth(unsigned int d, double val);
     bool containsPoint(double point[]);
 };
-
+*/
+class Cell;
 
 class SPTree
 {
@@ -80,17 +80,33 @@ class SPTree
     double* data;
     double* center_of_mass;
     unsigned int index[QT_NODE_CAPACITY];
-    
+
+    // Density specific terms
+    double* all_emb_dens; 
+    double* all_log_emb_dens;  // normalized to mean zero
+    double* all_log_orig_dens;  // normalized to mean zero, variance 1
+    double* all_marg_Q; // marginals at each point 
+
+    double emb_density_com; 
+    double log_emb_density_com;
+    double log_orig_density_com;
+    double marg_Q_com; 
+
     // Children
     SPTree** children;
     unsigned int no_children;
     
 public:
-    SPTree(unsigned int D, double* inp_data, unsigned int N);
-    SPTree(unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
-    SPTree(unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width);
-    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width);
-    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
+    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+	   double* log_orig_densities, double* marg_Q, unsigned int N);
+    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width);
+    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width);
+    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width);
+    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width);
     ~SPTree();
     void setData(double* inp_data);
     SPTree* getParent();
@@ -101,12 +117,13 @@ public:
     void rebuildTree();
     void getAllIndices(unsigned int* indices);
     unsigned int getDepth();
-    void computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density);
-    void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f);
+    void computeDensityForces(unsigned int point_index, double theta, double dense_f1[], 
+			      double dense_f2[]); 
     void print();
     
 private:
-    void init(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
+    void init(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width);
     void fill(unsigned int N);
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc);
     bool isChild(unsigned int test_index, unsigned int start, unsigned int end);

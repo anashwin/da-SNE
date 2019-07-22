@@ -37,7 +37,7 @@
 
 using namespace std;
 
-
+/*
 class Cell {
 
     unsigned int dimension;
@@ -56,7 +56,8 @@ public:
     void setWidth(unsigned int d, double val);
     bool containsPoint(double point[]);
 };
-
+*/
+class Cell; 
 
 class DA_SPTree
 {
@@ -118,9 +119,11 @@ public:
     void getAllIndices(unsigned int* indices);
     unsigned int getDepth();
     void computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q,
-			      int& total_count, double& total_time);
+			      int& total_count, double& total_time, double& emb_density);
+    
     void computeNonEdgeForces(unsigned int point_index, double theta,
-			      double neg_f[], double* sum_Q, int& total_count, double& total_time);
+			      double neg_f[], double* sum_Q, int& total_count, double& total_time,
+			      double& emb_density);
     void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying);
     // void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f);
     void print();

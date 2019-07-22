@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def int2color(i):
@@ -80,7 +80,7 @@ fig, ax = plt.subplots(1,1)
 
 ax.set_title("Embedding: ({})".format(flav_dict[flav]))
 
-ax.scatter(pts[:,0], pts[:,1], c=colors, s=4)
+ax.scatter(pts[:,0], pts[:,1], c=colors, s=10)
 
 # ax.set_xlim(-60, 60)
 # ax.set_ylim(-100, 100)

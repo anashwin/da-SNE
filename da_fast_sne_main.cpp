@@ -4,21 +4,21 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include "da_sne.h"
+#include "da_fast_sne.h"
 
 // Function that runs the Barnes-Hut implementation of t-SNE
 int main() {
 
     // Define some variables
 	int origN, N, D, no_dims, max_iter;
-	double perplexity, theta, beta_thresh, density_weight, *data;
+	double perplexity, theta, *data;
 	bool init_Y; 
     int rand_seed = -1;
     DA_SNE* tsne = new DA_SNE();
-    
-    printf("RUNNING!!\n");
+
+
     // Read the parameters and the dataset
-    if(tsne->load_data(&data, &origN, &D, &no_dims, &theta, &beta_thresh, &perplexity, &rand_seed, &max_iter, &init_Y, &density_weight)) {
+    if(tsne->load_data(&data, &origN, &D, &no_dims, &theta, &perplexity, &rand_seed, &max_iter, &init_Y)) {
 		// Make dummy landmarks
 
       printf("data entry 0: %f,%f,%f\n", data[0], data[1], data[2]);
@@ -38,22 +38,16 @@ int main() {
 	
 	double* costs = (double*) calloc(N, sizeof(double));
         if(Y == NULL || costs == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-	if (init_Y) { 
-	  tsne->run(data, N, D, Y, no_dims, perplexity, theta, beta_thresh, rand_seed, init_Y, 
-		    max_iter, 0, 0, 0, density_weight);
-	}
-	else { 
-	  tsne->run(data, N, D, Y, no_dims, perplexity, theta, beta_thresh, rand_seed, init_Y, 
-		    max_iter, 250, 250, max_iter - 250, density_weight);
-	} 
-	// Save the results
-	tsne->save_data(Y, landmarks, costs, N, no_dims);
-	
+	tsne->run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, init_Y, max_iter);
+
+		// Save the results
+		tsne->save_data(Y, landmarks, costs, N, no_dims);
+		
         // Clean up the memory
-	free(data); data = NULL;
-	free(Y); Y = NULL;
-	free(costs); costs = NULL;
-	free(landmarks); landmarks = NULL;
+		free(data); data = NULL;
+		free(Y); Y = NULL;
+		free(costs); costs = NULL;
+		free(landmarks); landmarks = NULL;
     }
     delete(tsne);
 }

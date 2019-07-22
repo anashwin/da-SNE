@@ -23,7 +23,7 @@
  * EVENT SHALL LAURENS VAN DER MAATEN BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
  * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND` ON ANY THEORY OF LIABILITY, WHETHER IN
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
@@ -31,48 +31,35 @@
  */
 
 
-#ifndef DA_SNE_H
-#define DA_SNE_H
+#ifndef DA_SNE_NOTAILS_H
+#define DA_TSNE_NOTAILS_H
 
 
 static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
 
 
-class DA_SNE
+class TSNE
 {
 public:
-  void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, 
-	   double theta, double beta_thresh, int rand_seed,
-	   bool skip_random_init, int max_iter=1000, int stop_lying_iter=250, 
-	   int mom_switch_iter=250, int density_iter = 750, double density_weight = 1.0);
-  bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* beta_thresh, 
-		 double* perplexity, int* rand_seed, int* max_iter, bool* init_Y, 
-		 double* double_weight);
-  bool load_Y(double** Y, int* n, int* d); 
-  void save_data(double* data, int* landmarks, double* costs, int n, int d);
-  void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
+    void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+             bool skip_random_init, int max_iter=1000, int stop_lying_iter=250, int mom_switch_iter=250);
+    bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
+    void save_data(double* data, int* landmarks, double* costs, int n, int d);
+    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
 
 
 private:
-    void computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P,
-			 double* Y, int N, int D, double* dC, double theta, double* betas,
-			 double* emb_densities, double* log_orig_densities, 
-			 double beta_min, double beta_max, double beta_thresh, int orig_D,
-			 double* self_loops, int& total_count, double& total_time, bool lying, 
-			 bool density, double density_weight);
-    void computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas,
-			      double beta_min, double beta_max);
+    void computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta, double* beta,
+			 double beta_max, int orig_D); 
+    void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
     double evaluateError(double* P, double* Y, int N, int D);
-    double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta, double* betas, double beta_min, double beta_thresh);
+    double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta);
     void zeroMean(double* X, int N, int D);
-    void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity, double* betas, double& smallest_beta, double& largest_beta);
-    // Need to update the nearest neighbors P calculation too 
-    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
-				   unsigned int** _col_P, double** _val_P, double perplexity, int K,
-				   double* betas, double& smallest_beta, double& largest_beta, double* self_loops, double* orig_density);
+    void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity);
+    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas,
+				   double& largest_beta);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };
 
 #endif
-

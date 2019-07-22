@@ -40,13 +40,13 @@
 #include <fstream>
 #include "vptree.h"
 #include "sptree.h"
-#include "tsne.h"
+#include "grad_tsne.h"
 
 
 using namespace std;
 
 // Perform t-SNE
-void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void Grad_TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
                bool skip_random_init, int max_iter, int stop_lying_iter, int mom_switch_iter) {
 
     // Set random seed
@@ -73,9 +73,11 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
     // Allocate some memory
     double* dY    = (double*) malloc(N * no_dims * sizeof(double));
+    double* dY_num = (double*) malloc(N * no_dims * sizeof(double)); 
     double* uY    = (double*) malloc(N * no_dims * sizeof(double));
     double* gains = (double*) malloc(N * no_dims * sizeof(double));
-    if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+    if(dY == NULL || dY_num == NULL || uY == NULL || gains == NULL ) 
+      { printf("Memory allocation failed!\n"); exit(1); }
     for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
     for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
 
@@ -92,22 +94,28 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     // Compute input similarities for exact t-SNE
     double* P; unsigned int* row_P; unsigned int* col_P; double* val_P;
     double* betas = (double*) malloc(N*sizeof(double));
-
+    double* log_rho = (double*) malloc(N*sizeof(double));
+    double mean_logrho = 0.0;
+    double var_rho = 0.0; 
+    
     double* orig_densities = (double*) malloc(N*sizeof(double));
     double* emb_densities = (double*) calloc(N, sizeof(double));
-    
+    double* self_loops = (double*) calloc(N, sizeof(double)); 
+    double min_beta = 0.; 
     if(exact) {
 
         // Compute similarities
         printf("Exact?");
         P = (double*) malloc(N * N * sizeof(double));
         if(P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-        computeGaussianPerplexity(X, N, D, P, perplexity);
+        computeGaussianPerplexity(X, N, D, P, perplexity, betas, min_beta, log_rho,
+				  self_loops);
 
         // Symmetrize input similarities
         printf("Symmetrizing...\n");
         int nN = 0;
         for(int n = 0; n < N; n++) {
+	  mean_logrho += log_rho[n]/N; 
             int mN = (n + 1) * N;
             for(int m = n + 1; m < N; m++) {
                 P[nN + m] += P[mN + n];
@@ -119,6 +127,14 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         double sum_P = .0;
         for(int i = 0; i < N * N; i++) sum_P += P[i];
         for(int i = 0; i < N * N; i++) P[i] /= sum_P;
+
+	for(int n=0; n<N; n++) {
+	  log_rho[n] -= mean_logrho; 
+	  var_rho += log_rho[n]*log_rho[n] / (N - 1); 
+	}
+	for(int n=0; n<N; n++) {
+	  log_rho[n] /= sqrt(var_rho); 
+	} 
     }
 
     // Compute input similarities for approximate t-SNE
@@ -166,13 +182,60 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     int sp_count = 0;
     double sp_time = 0.; 
     double avg_time = 0.; 
+
+    bool dense_switch = false;
+    bool dof_on = true;
+    // bool dof_on = false; 
+    // TEST DEBUG!!!
+    // double* log_rho = (double*) calloc(N, sizeof(double)); 
+    // 
     
     start = clock();
 
 	for(int iter = 0; iter < max_iter; iter++) {
 
+	  if (iter == max_iter - 50) {
+	  // if (iter == max_iter - 1) { 
+	    dense_switch = true;
+	    // late exaggeration?
+	    /*
+	    int nN = 0;
+	    
+	    if (exact) {
+	      for (int n=0; n<N; n++) {
+		for (int m=0; m < N; m++) {
+		  // P[nN + m] /= (self_loops[n] + self_loops[m]);
+		  P[nN + m] *= 12.0; 
+		}
+		nN += N;
+	      } 
+	    }
+	    */
+	  }
+	  if (iter == 2*stop_lying_iter) {
+	    dof_on = false;
+	    // dense_switch = true;
+	  } 
         // Compute (approximate) gradient
-        if(exact) computeExactGradient(P, Y, N, no_dims, dY);
+	  if(exact) {
+	    computeExactGradient(P, Y, N, no_dims, dY, betas, min_beta, 
+				 log_rho, dense_switch, dof_on);
+
+	    if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) { 
+	      computeNumericalGradient(P, Y, N, no_dims, dY_num, log_rho); 
+	      int nD = 0.; 
+	      double delta_grad = 0.;
+	      double norm_grad = 0.; 
+	      for (int n=0; n < N; n++) { 
+		for (int d=0; d<no_dims; d++) { 
+		  delta_grad += (dY[nD+d] - dY_num[nD+d])*(dY[nD+d] - dY_num[nD+d]); 
+		  norm_grad += dY[nD+d] * dY[nD + d]; 
+		}
+		nD += no_dims; 
+	      }
+	      printf("****Gradient error: %f\n", sqrt(delta_grad / norm_grad)); 
+	    }
+	  }
         else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta,
 			     emb_densities, sp_count, sp_time);
 
@@ -198,7 +261,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         if (iter > 0 && (iter % 50 == 0 || iter == max_iter - 1)) {
             end = clock();
             double C = .0;
-            if(exact) C = evaluateError(P, Y, N, no_dims);
+            if(exact) C = evaluateError(P, Y, N, no_dims, log_rho);
             else      C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);  // doing approximate computation here!
             if(iter == 0)
                 printf("Iteration %d: error is %f\n", iter + 1, C);
@@ -230,6 +293,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     
     // Clean up memory
     free(dY);
+    free(dY_num); 
     free(uY);
     free(gains);
     free(betas);
@@ -246,7 +310,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta, double* emb_densities, 
+void Grad_TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta, double* emb_densities, 
 			   int& total_count, double& total_time)
 {
 
@@ -255,20 +319,12 @@ void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, dou
 
     // Compute all terms required for t-SNE gradient
     double sum_Q = .0;
-    double marg_Q = 0.;
-    
     double* pos_f = (double*) calloc(N * D, sizeof(double));
     double* neg_f = (double*) calloc(N * D, sizeof(double));
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
-    for(int n = 0; n < N; n++) {
-      tree->computeNonEdgeForces(n, theta, neg_f + n * D, &marg_Q, total_count, total_time, emb_densities[n]);
+    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q, total_count, total_time, emb_densities[n]);
 
-    emb_densities[n] /= marg_Q; 
-    sum_Q += marg_Q;
-    marg_Q = 0.;
-    }
-    
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
@@ -278,8 +334,126 @@ void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, dou
     delete tree;
 }
 
+// Approximate the gradient numerically (sanity check)
+void Grad_TSNE::computeNumericalGradient(double* P, double* Y, int N, int D, double* dC,
+					 double* log_rho)
+{
+  // cost function
+  double C; 
+  for(int i = 0; i < N * D; i++) dC[i] = 0.0;
+
+    // Compute the squared Euclidean distance matrix
+    double* DD = (double*) malloc(N * N * sizeof(double));
+    if(DD == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+    computeSquaredEuclideanDistance(Y, N, D, DD);
+
+    // Compute Q-matrix and normalization sum
+    double* Q    = (double*) malloc(N * N * sizeof(double));
+    if(Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+    double sum_Q = .0;
+    double* marg_Q = (double*) malloc(N * sizeof(double)); 
+    
+    double* R = (double*) malloc(N*sizeof(double)); 
+    double* logR = (double*) malloc(N*sizeof(double)); 
+
+    double mean_logR = 0.; 
+
+    int nN = 0.; 
+    for(int n = 0; n < N; n++) { 
+      R[n] = 0.;
+      marg_Q[n] = 0.; 
+      for (int m=0; m < N; m++) { 
+	Q[nN + m] = 1 / (1 + DD[nN + m]); 
+	marg_Q[n] += Q[nN + m]; 
+	R[n] += sqrt(DD[nN + m]) * Q[nN + m]; 
+      }
+      nN += N; 
+      R[n] /= marg_Q[n]; 
+      sum_Q += marg_Q[n]; 
+      logR[n] = log(R[n]); 
+      mean_logR += logR[n] / N; 
+    }
+
+    double var_logR = 10.;
+    double cov = 0.; 
+    for (int n=0; n < N; n++) { 
+      // R[n] -= mean_logR; 
+      var_logR += (logR[n]-mean_logR)*(logR[n]-mean_logR) / (N - 1);
+      cov += (logR[n]-mean_logR)*log_rho[n] / (N - 1); 
+    } 
+    // correlation = cov/(std(R) * std(rho))
+    C = cov / sqrt(var_logR); 
+
+
+    // Perturb each Y
+    double Cprime = 0.; 
+    int nD = 0.;
+    
+    double delta_Y = .001;
+    // This will hold the updated values of the Q row
+    
+    // N is the overall index, which tells us which point is being perturbed
+    nN = 0;
+    for (int n=0; n<N; n++) {
+      
+      // Note that to update R_j, we only need to change one term: D_{nj} Q_{nj}
+      for (int d=0; d < D; d++) { 
+
+	int d_flag0 = 1-d; 
+	int d_flag1 = d; 
+
+	double Yd_prime[2] = { Y[n*D] + d_flag0 * delta_Y, Y[n*D + 1] + d_flag1 * delta_Y};   
+	double* new_Q_row = (double*) malloc(N*sizeof(double));
+	// Update Q_{nj} and marg_Q[j] for all j
+
+	double* new_R = (double*) malloc(N*sizeof(double)); 
+	double* new_marg_Q = (double*) malloc(N*sizeof(double)); 
+	double* new_logR = (double*) malloc(N*sizeof(double)); 
+	double new_mean = 0.; 
+	double new_var = 0.; 
+	double new_cov = 0.; 
+
+	for (int j=0; j < N; j++) { 
+	  double dist = (Yd_prime[0]-Y[j*D])*(Yd_prime[0]-Y[j*D]) 
+	    + (Yd_prime[1]-Y[j*D+1])*(Yd_prime[1]-Y[j*D+1]); 
+	  new_Q_row[j] = 1./(1. + dist);
+	  new_marg_Q[j] = marg_Q[j] - Q[nN + j] + new_Q_row[j]; 
+	  // Now update the densities
+
+	  new_R[j] = R[j] - Q[nN + j] * sqrt(DD[nN + j]) + new_Q_row[j] * sqrt(dist) / marg_Q[j]; 
+	  new_logR[j] = log(new_R[j]); 
+	  new_mean += new_logR[j];
+	} 
+
+	// Calculate new variance and covariance
+	for (int j=0; j < N; j++) { 
+	  new_var += (new_logR[j] - new_mean) * (new_logR[j] - new_mean) / (N - 1); 
+	  new_cov += (new_logR[j] - new_mean) * log_rho[j]; 
+	} 
+	Cprime = new_cov / sqrt(new_var); 
+	
+	dC[nD + d] = -(Cprime - C) / delta_Y; 
+	free(new_Q_row);
+	free(new_R); 
+	free(new_marg_Q); 
+	free(new_logR); 
+      }
+      nN += N; 
+      nD += D; 
+    }
+    
+    free(DD); 
+    free(Q); 
+    free(marg_Q); 
+    free(R); 
+    free(logR); 
+}
+
 // Compute gradient of the t-SNE cost function (exact)
-void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) {
+void Grad_TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC,
+				     double* betas, double min_beta,
+				     double* log_rho, bool dense_switch,
+				     bool dof_on) {
 
 	// Make sure the current gradient contains zeros
 	for(int i = 0; i < N * D; i++) dC[i] = 0.0;
@@ -293,43 +467,160 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) 
     double* Q    = (double*) malloc(N * N * sizeof(double));
     if(Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     double sum_Q = .0;
+
+    double* marg_Q = (double*) calloc(N, sizeof(double));
+
+    double* R = (double*) malloc(N*sizeof(double));
+    double mean_logR = 0.0; 
+
+    double* E = (double*) malloc(N*sizeof(double));  
+
+    double* d_logR = (double*) malloc(N*N *sizeof(double));
+
+    double Cov = 0.0;
+    double Var = 10.;
+    
+    double sum_rho_E = 0.0; 
+    double sum_rho_R = 0.0;
+    double sum_R_E = 0.0; 
+    
     int nN = 0;
     for(int n = 0; n < N; n++) {
+      R[n] = 0.0; 
     	for(int m = 0; m < N; m++) {
             if(n != m) {
-                Q[nN + m] = 1 / (1 + DD[nN + m]);
-                sum_Q += Q[nN + m];
+	      double nu; 
+	      if (dof_on) {
+		nu = 1 + log(betas[n]/min_beta) + log(betas[m]/min_beta);
+	      Q[nN + m] = pow(1 + DD[nN + m]/nu, -(nu + 1)/2);
+	      }
+	      else {
+		Q[nN + m] = 1 / (1 + DD[nN + m]);
+	      }
+                // sum_Q += Q[nN + m];
+		marg_Q[n] += Q[nN + m];
+		if (dense_switch) R[n] += sqrt(DD[nN + m]) * Q[nN + m]; 
             }
         }
         nN += N;
+	if (dense_switch) R[n] /= marg_Q[n]; 
+	sum_Q += marg_Q[n]; 
+    }
+    
+    // Normalize, logarithm of the R[n]
+    if (dense_switch) { 
+    for(int n=0; n<N; n++) {
+      R[n] = log(R[n]);
+      mean_logR += R[n]/N; 
+    }
+    // printf("mean = %.4f\n", mean_logR); 
+
+    for(int n=0; n<N; n++) {
+      Var += (R[n] - mean_logR)*(R[n] - mean_logR)/(N-1); 
+    } 
+    // Computing covariance:
+    for(int n=0; n<N; n++) {
+      Cov += (R[n] - mean_logR)*log_rho[n]/(N-1);
     }
 
-	// Perform the computation of the gradient
+    // Computing the residuals
+    /*
+    for(int n=0; n<N; n++) {
+      E[n] = ((R[n] - mean_logR)/sqrt(Var) - Cov*log_rho[n]);
+      sum_rho_E += log_rho[n]*E[n];
+      sum_rho_R += log_rho[n]*R[n];
+      sum_R_E += R[n]*E[n]; 
+    } 
+    */
+    
+    // Computing the dR/d(d_ij) derivatives
+    nN = 0;
+    for (int n=0; n<N; n++) {
+      for (int m=n+1; m<N; m++) {
+    	d_logR[nN + m] = Q[nN + m]*Q[nN + m] / marg_Q[n] * (2*sqrt(DD[nN+m]) +
+    							    (1 - DD[nN +m])/exp(R[n]));
+    	d_logR[m*N + n] = Q[m*N + n]*Q[m*N + n] / marg_Q[m] * (2*sqrt(DD[nN+m]) +
+							     (1 - DD[nN +m])/exp(R[m]));
+      }
+      nN += N; 
+    }
+    }
+    // Perform the computation of the gradient
     nN = 0;
     int nD = 0;
 	for(int n = 0; n < N; n++) {
         int mD = 0;
     	for(int m = 0; m < N; m++) {
             if(n != m) {
-                double mult = (P[nN + m] - (Q[nN + m] / sum_Q)) * Q[nN + m];
+	      double mult;
+	      if (dof_on) {
+		double nu = 1 + log(betas[n]/min_beta) + log(betas[m]/min_beta);
+		mult = ((nu + 1)/nu)/(1 + DD[nN + m]/nu) * (Q[nN+m]/sum_Q); 
+	      }
+	      else mult= (P[nN + m] - (Q[nN + m] / sum_Q)) * Q[nN + m];
+	      double density;
+	      if (dense_switch) { 
+		/*
+		if (m > n) {
+		  density = 2*(E[n]*d_logR[nN+m] + E[m]*d_logR[m*N+n])/sqrt(Var)
+		    - 2./N * sum_rho_E*(log_rho[n]*d_logR[nN+m] + log_rho[m]*d_logR[m*N + n]); 
+		} 
+		else {
+		  density = 2*(E[m]*d_logR[nN+m] + E[n]*d_logR[m*N+n])
+		    - 2./N * sum_rho_E*(log_rho[m]*d_logR[nN+m] + log_rho[n]*d_logR[m*N + n]); 
+		} 
+
+		density /= sqrt(DD[nN + m]); 
+		*/
+		/*
+		density = 0.
+		density += 2*(E[m]*d_logR[nN+m] + E[n]*d_logR[m*N+n])/sqrt(Var);
+
+		double term = (R[m]-mean_logR)*d_logR[nN+m]+(R[n] - mean_logR)*d_logR[m*N+n]; 
+		density -= 2./(Var*sqrt(Var*N))*sum_R_E*term;
+		density -= 2.*sum_rho_E/(N*sqrt(Var))*(log_rho[m]*d_logR[nN+m]
+							 + log_rho[n]*d_logR[m*N+n]);
+		density += 2.*sum_rho_E/(N*Var*sqrt(N*Var))*term*sum_rho_R; 
+		*/
+		
+		/*
+		density = (log_rho[m]*d_logR[nN+m] + log_rho[n]*d_logR[m*N + n]); 
+		*/
+
+		density = Var*(log_rho[m]*d_logR[nN+m] + log_rho[n]*d_logR[m*N + n])
+		  - Cov*((R[m]-mean_logR)*d_logR[nN+m] + (R[n]-mean_logR)*d_logR[m*N+n]);
+		density /= ((N-1)*Var*sqrt(Var));
+
+		density /= sqrt(DD[nN + m]);
+	      }
                 for(int d = 0; d < D; d++) {
-                    dC[nD + d] += (Y[nD + d] - Y[mD + d]) * mult;
+		  // dC[nD + d] += (Y[nD + d] - Y[mD + d]) * (mult+density);
+		  if(dense_switch) dC[nD + d] += (Y[nD + d] - Y[mD + d]) * (-density);
+		  else dC[nD + d] += (Y[nD + d] - Y[mD + d])*mult; 
+		  // dC[nD + d] += (Y[nD + d] - Y[mD + d])*mult; 
                 }
+
+		// printf("mult/density: %f\n", mult/density); 
             }
             mD += D;
 		}
         nN += N;
         nD += D;
 	}
-
+	
     // Free memory
+	
     free(DD); DD = NULL;
     free(Q);  Q  = NULL;
+    free(R);
+    free(E);
+    free(d_logR); 
+    free(marg_Q); 
 }
 
 
 // Evaluate t-SNE cost function (exactly)
-double TSNE::evaluateError(double* P, double* Y, int N, int D) {
+double Grad_TSNE::evaluateError(double* P, double* Y, int N, int D, double* log_rho) {
 
     // Compute the squared Euclidean distance matrix
     double* DD = (double*) malloc(N * N * sizeof(double));
@@ -337,27 +628,63 @@ double TSNE::evaluateError(double* P, double* Y, int N, int D) {
     if(DD == NULL || Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     computeSquaredEuclideanDistance(Y, N, D, DD);
 
+    double* R = (double*) malloc(N*sizeof(double));
+    double* marg_Q = (double*) calloc(N, sizeof(double)); 
+    
+    double mean_logR = DBL_MIN; 
+    double Cov = DBL_MIN;
+    double Var = DBL_MIN; 
     // Compute Q-matrix and normalization sum
     int nN = 0;
     double sum_Q = DBL_MIN;
     for(int n = 0; n < N; n++) {
+      R[n] = DBL_MIN; 
     	for(int m = 0; m < N; m++) {
             if(n != m) {
                 Q[nN + m] = 1 / (1 + DD[nN + m]);
-                sum_Q += Q[nN + m];
+                // sum_Q += Q[nN + m];
+		marg_Q[n] += Q[nN + m];
+		R[n] += sqrt(DD[nN+m])*Q[nN+m]; 
             }
             else Q[nN + m] = DBL_MIN;
         }
+	sum_Q += marg_Q[n];
+	R[n] /= marg_Q[n]; 
         nN += N;
+	R[n] = log(R[n]);
+	mean_logR += R[n]/N;
+
+	// printf("R[%i] = %f\n", n, log_rho[n]); 
     }
+    for (int n=0; n<N; n++) {
+      Var += (R[n] - mean_logR)*(R[n] - mean_logR) / (N-1); 
+    }
+    for (int n=0; n<N; n++) {
+      Cov += (R[n] - mean_logR)*log_rho[n]/(N-1);
+    } 
+    
     for(int i = 0; i < N * N; i++) Q[i] /= sum_Q;
-
+    printf("cov = %f, var = %f \n", Cov, Var);
+    
     // Sum t-SNE error
+    double C_KL = .0;
+    double C_dense = .0; 
     double C = .0;
-	for(int n = 0; n < N * N; n++) {
-        C += P[n] * log((P[n] + FLT_MIN) / (Q[n] + FLT_MIN));
+    for(int n = 0; n < N * N; n++) {
+      C_KL += P[n] * log((P[n] + FLT_MIN) / (Q[n] + FLT_MIN));
+	  
+	  // C += pow(R[n] - mean_logR - Cov * log_rho[n], 2);
+	  // printf("mean log R = %f\n", mean_logR);
 	}
+    for(int n = 0; n < N; n++) {
+      // C_KL += P[n] * log((P[n] + FLT_MIN) / (Q[n] + FLT_MIN));
+	  
+      // C_dense += pow((R[n] - mean_logR) - Cov * log_rho[n], 2);
+      C_dense += (Cov/sqrt(Var+FLT_MIN))/N; 
+    }
 
+    printf("KL Err: %f, Dense Err: %f\n", C_KL, C_dense);
+    C = C_KL + C_dense; 
     // Clean up memory
     free(DD);
     free(Q);
@@ -365,7 +692,7 @@ double TSNE::evaluateError(double* P, double* Y, int N, int D) {
 }
 
 // Evaluate t-SNE cost function (approximately)
-double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta)
+double Grad_TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta)
 {
 
     // Get estimate of normalization term
@@ -403,8 +730,12 @@ double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val
 
 
 // Compute input similarities with a fixed perplexity
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity) {
+void Grad_TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity,
+					  double* betas, double& smallest_beta, double* log_rho,
+					  double* self_loops) {
 
+  double largest_beta = DBL_MIN; 
+  smallest_beta = DBL_MAX; 
 	// Compute the squared Euclidean distance matrix
 	double* DD = (double*) malloc(N * N * sizeof(double));
     if(DD == NULL) { printf("Memory allocation failed!\n"); exit(1); }
@@ -416,11 +747,13 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 
 		// Initialize some variables
 		bool found = false;
-		double beta = 1.0;
 		double min_beta = -DBL_MAX;
-		double max_beta =  DBL_MAX;
+		double max_beta = DBL_MAX; 
+		double beta = 1.0;
 		double tol = 1e-5;
         double sum_P;
+	double sum_Q=DBL_MIN; 
+	log_rho[n] = 0.0; 
 
 		// Iterate until we found a good perplexity
 		int iter = 0;
@@ -462,21 +795,43 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 			// Update iteration counter
 			iter++;
 		}
-
+		
 		// printf("old p: %f\n", P[nN + n + 1]); 
 		// Row normalize P
-		for(int m = 0; m < N; m++) P[nN + m] /= sum_P;
-		// printf("sample p: %f\n", P[nN + n + 1]); 
+		for(int m = 0; m < N; m++) {
+		  sum_Q += 1./(1 + DD[nN + m]); 
+		  P[nN + m] /= sum_P;
+		  log_rho[n] += sqrt(DD[nN + m]) * P[nN + m];
+		  // log_rho[n] += sqrt(DD[nN + m])/(1 + DD[nN + m]); 
+		}
+		// log_rho[n] /= sum_Q; 
+		// printf("sample p: %f\n", P[nN + n + 1]);
+		betas[n] = beta;
+		if (beta < smallest_beta) smallest_beta = beta;
+		if (beta > largest_beta) largest_beta = beta; 
+		log_rho[n] = log(log_rho[n]); 
         nN += N;
 	}
+	/*
+	double max_ratio = log(largest_beta/smallest_beta);
 
+	nN = 0; 
+	for (int n=0; n<N; n++) {
+	  double extra_term = log(betas[n]/smallest_beta) / max_ratio;
+	  self_loops[n] = extra_term;
+	  for (int m=0; m<N; m++) {
+	    if (m != n) P[nN + m] *= (self_loops[n]); 	     
+	  } 
+	  nN += N; 
+	}
+	*/
 	// Clean up memory
 	free(DD); DD = NULL;
 }
 
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas, double* orig_densities) {
+void Grad_TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas, double* orig_densities) {
 
     if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
@@ -521,9 +876,6 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
 
         // Iterate until we found a good perplexity
         int iter = 0; double sum_P;
-
-	double sums_Q = 0.;
-	
         while(!found && iter < 200) {
 
             // Compute Gaussian kernel row
@@ -572,10 +924,9 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
 	  // orig_densities[n] += cur_P[m]*distances[m+1];
 
 	  // Kernel notion of density
-	  orig_densities[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
-	  sums_Q += 1./(1 + distances[m+1]*distances[m+1]); 
+	  // orig_densities[n] += 1./(1 + distances[m+1]*distances[m+1]); 
 	}
-	orig_densities[n] /= sums_Q; 
+
 	
         for(unsigned int m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
@@ -591,7 +942,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
 
 
 // Symmetrizes a sparse matrix
-void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, int N) {
+void Grad_TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, int N) {
 
     // Get sparse matrix
     unsigned int* row_P = *_row_P;
@@ -679,7 +1030,7 @@ void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double
 }
 
 // Compute squared Euclidean distance matrix
-void TSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
+void Grad_TSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
     const double* XnD = X;
     for(int n = 0; n < N; ++n, XnD += D) {
         const double* XmD = XnD + D;
@@ -698,7 +1049,7 @@ void TSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) 
 
 
 // Makes data zero-mean
-void TSNE::zeroMean(double* X, int N, int D) {
+void Grad_TSNE::zeroMean(double* X, int N, int D) {
 
 	// Compute data mean
 	double* mean = (double*) calloc(D, sizeof(double));
@@ -727,7 +1078,7 @@ void TSNE::zeroMean(double* X, int N, int D) {
 
 
 // Generates a Gaussian random number
-double TSNE::randn() {
+double Grad_TSNE::randn() {
 	double x, y, radius;
 	do {
 		x = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
@@ -742,7 +1093,7 @@ double TSNE::randn() {
 
 // Function that loads data from a t-SNE file
 // Note: this function does a malloc that should be freed elsewhere
-bool TSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
+bool Grad_TSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
 
 	// Open file, read first 2 integers, allocate memory, and read the data
     FILE *h;
@@ -766,7 +1117,7 @@ bool TSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta,
 }
 
 // Function that saves map to a t-SNE file
-void TSNE::save_data(double* data, int* landmarks, double* costs, int n, int d) {
+void Grad_TSNE::save_data(double* data, int* landmarks, double* costs, int n, int d) {
 
 	// Open file, write first 2 integers and then the data
 	FILE *h;

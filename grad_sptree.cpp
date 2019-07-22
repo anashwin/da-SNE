@@ -36,7 +36,7 @@
 #include <stdio.h>
 #include <cmath>
 #include <ctime>
-#include "sptree.h"
+#include "grad_sptree.h"
 
 
 
@@ -88,11 +88,11 @@ bool Cell::containsPoint(double point[])
 }
 
 
-// Default constructor for SPTree -- build tree, too!
-SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N)
+// Default constructor for DA_SPTree -- build tree, too!
+DA_SPTree::DA_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N)
 {
     
-    // Compute mean, width, and height of current map (boundaries of SPTree)
+    // Compute mean, width, and height of current map (boundaries of Grad_SPTree)
     int nD = 0;
     double* mean_Y = (double*) calloc(D,  sizeof(double));
     double*  min_Y = (double*) malloc(D * sizeof(double)); for(unsigned int d = 0; d < D; d++)  min_Y[d] =  DBL_MAX;
@@ -107,10 +107,10 @@ SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N)
     }
     for(int d = 0; d < D; d++) mean_Y[d] /= (double) N;
     
-    // Construct SPTree
+    // Construct Grad_SPTree
     double* width = (double*) malloc(D * sizeof(double));
     for(int d = 0; d < D; d++) width[d] = fmax(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
-    init(NULL, D, inp_data, mean_Y, width);
+    init(NULL, D, inp_data, inp_betas, beta_min, mean_Y, width);
     fill(N);
     
     // Clean up memory
@@ -121,52 +121,62 @@ SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N)
 }
 
 
-// Constructor for SPTree with particular size and parent -- build the tree, too!
-SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width)
+// Constructor for Grad_SPTree with particular size and parent -- build the tree, too!
+Grad_SPTree::Grad_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width)
 {
-    init(NULL, D, inp_data, inp_corner, inp_width);
+  init(NULL, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
     fill(N);
 }
 
 
-// Constructor for SPTree with particular size (do not fill the tree)
-SPTree::SPTree(unsigned int D, double* inp_data, double* inp_corner, double* inp_width)
+// Constructor for Grad_SPTree with particular size (do not fill the tree)
+Grad_SPTree::Grad_SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width)
 {
-    init(NULL, D, inp_data, inp_corner, inp_width);
+  init(NULL, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
 }
 
 
-// Constructor for SPTree with particular size and parent (do not fill tree)
-SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width) {
-    init(inp_parent, D, inp_data, inp_corner, inp_width);
+// Constructor for Grad_SPTree with particular size and parent (do not fill tree)
+Grad_SPTree::Grad_SPTree(Grad_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width) {
+  init(inp_parent, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
 }
 
 
-// Constructor for SPTree with particular size and parent -- build the tree, too!
-SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width)
+// Constructor for Grad_SPTree with particular size and parent -- build the tree, too!
+Grad_SPTree::Grad_SPTree(Grad_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas,
+		     double beta_min, unsigned int N, double* inp_corner, double* inp_width)
 {
-    init(inp_parent, D, inp_data, inp_corner, inp_width);
+  init(inp_parent, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
     fill(N);
 }
 
 
 // Main initialization function
-void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width)
+void Grad_SPTree::init(Grad_SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min,
+		     double* inp_corner, double* inp_width)
 {
     parent = inp_parent;
     dimension = D;
     no_children = 2;
     for(unsigned int d = 1; d < D; d++) no_children *= 2;
     data = inp_data;
+    
+    betas = inp_betas; 
     is_leaf = true;
     size = 0;
     cum_size = 0;
+
+    overall_beta_min = log(beta_min); 
+    
+    min_beta = DBL_MAX;
+    max_beta = DBL_MIN; 
+
     
     boundary = new Cell(dimension);
     for(unsigned int d = 0; d < D; d++) boundary->setCorner(d, inp_corner[d]);
     for(unsigned int d = 0; d < D; d++) boundary->setWidth( d, inp_width[d]);
     
-    children = (SPTree**) malloc(no_children * sizeof(SPTree*));
+    children = (Grad_SPTree**) malloc(no_children * sizeof(Grad_SPTree*));
     for(unsigned int i = 0; i < no_children; i++) children[i] = NULL;
 
     center_of_mass = (double*) malloc(D * sizeof(double));
@@ -176,8 +186,8 @@ void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* 
 }
 
 
-// Destructor for SPTree
-SPTree::~SPTree()
+// Destructor for Grad_SPTree
+Grad_SPTree::~Grad_SPTree()
 {
     for(unsigned int i = 0; i < no_children; i++) {
         if(children[i] != NULL) delete children[i];
@@ -190,21 +200,21 @@ SPTree::~SPTree()
 
 
 // Update the data underlying this tree
-void SPTree::setData(double* inp_data)
+void Grad_SPTree::setData(double* inp_data)
 {
     data = inp_data;
 }
 
 
 // Get the parent of the current tree
-SPTree* SPTree::getParent()
+Grad_SPTree* Grad_SPTree::getParent()
 {
     return parent;
 }
 
 
-// Insert a point into the SPTree
-bool SPTree::insert(unsigned int new_index)
+// Insert a point into the Grad_SPTree
+bool Grad_SPTree::insert(unsigned int new_index)
 {
     // Ignore objects which do not belong in this quad tree
     double* point = data + new_index * dimension;
@@ -217,6 +227,17 @@ bool SPTree::insert(unsigned int new_index)
     double mult2 = 1.0 / (double) cum_size;
     for(unsigned int d = 0; d < dimension; d++) center_of_mass[d] *= mult1;
     for(unsigned int d = 0; d < dimension; d++) center_of_mass[d] += mult2 * point[d];
+
+    double beta = betas[new_index];
+    
+    // update beta values
+    log_beta_com = ((double) (cum_size - 1))/ ((double) cum_size) * log_beta_com
+      + 1.0/((double) cum_size) * beta; // New center of mass
+
+    if (beta < min_beta) min_beta = beta;
+    if (beta > max_beta) max_beta = beta;
+
+    beta_ratio = max_beta/min_beta - 1; // i.e. beta_max = (1+beta_ratio)*beta_min
     
     // If there is space in this quad tree and it is a leaf, add the object here
     if(is_leaf && size < QT_NODE_CAPACITY) {
@@ -250,7 +271,7 @@ bool SPTree::insert(unsigned int new_index)
 
     
 // Create four children which fully divide this cell into four quads of equal area
-void SPTree::subdivide() {
+void Grad_SPTree::subdivide() {
     
     // Create new children
     double* new_corner = (double*) malloc(dimension * sizeof(double));
@@ -263,7 +284,7 @@ void SPTree::subdivide() {
             else                   new_corner[d] = boundary->getCorner(d) + .5 * boundary->getWidth(d);
             div *= 2;
         }
-        children[i] = new SPTree(this, dimension, data, new_corner, new_width);
+        children[i] = new Grad_SPTree(this, dimension, data, betas, overall_beta_min, new_corner, new_width);
     }
     free(new_corner);
     free(new_width);
@@ -283,15 +304,15 @@ void SPTree::subdivide() {
 }
 
 
-// Build SPTree on dataset
-void SPTree::fill(unsigned int N)
+// Build Grad_SPTree on dataset
+void Grad_SPTree::fill(unsigned int N)
 {
     for(unsigned int i = 0; i < N; i++) insert(i);
 }
 
 
 // Checks whether the specified tree is correct
-bool SPTree::isCorrect()
+bool Grad_SPTree::isCorrect()
 {
     for(unsigned int n = 0; n < size; n++) {
         double* point = data + index[n] * dimension;
@@ -307,15 +328,15 @@ bool SPTree::isCorrect()
 
 
 
-// Build a list of all indices in SPTree
-void SPTree::getAllIndices(unsigned int* indices)
+// Build a list of all indices in Grad_SPTree
+void Grad_SPTree::getAllIndices(unsigned int* indices)
 {
     getAllIndices(indices, 0);
 }
 
 
-// Build a list of all indices in SPTree
-unsigned int SPTree::getAllIndices(unsigned int* indices, unsigned int loc)
+// Build a list of all indices in Grad_SPTree
+unsigned int Grad_SPTree::getAllIndices(unsigned int* indices, unsigned int loc)
 {
     
     // Gather indices in current quadrant
@@ -330,7 +351,7 @@ unsigned int SPTree::getAllIndices(unsigned int* indices, unsigned int loc)
 }
 
 
-unsigned int SPTree::getDepth() {
+unsigned int Grad_SPTree::getDepth() {
     if(is_leaf) return 1;
     int depth = 0;
     for(unsigned int i = 0; i < no_children; i++) depth = fmax(depth, children[i]->getDepth());
@@ -338,9 +359,97 @@ unsigned int SPTree::getDepth() {
 }
 
 
-// Compute non-edge forces using Barnes-Hut algorithm
-void SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q,
-				  int& total_count, double& total_time, double& emb_density)
+// Compute non-edge forces using Barnes-Hut algorithm (with the full DA_SNE algorithm)
+void Grad_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density)
+{
+  
+    // Make sure that we spend no time on empty nodes or self-interactions
+    if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
+    
+    // Compute distance between point and center-of-mass
+    double D = .0;
+    unsigned int ind = point_index * dimension;
+    for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind + d] - center_of_mass[d];
+    for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
+    
+    // Check whether we can use this node as a "summary"
+    double max_width = 0.0;
+    double cur_width;
+    for(unsigned int d = 0; d < dimension; d++) {
+        cur_width = boundary->getWidth(d);
+        max_width = (max_width > cur_width) ? max_width : cur_width;
+    }
+
+    // Check the beta condition as well:
+    // if (!is_leaf) printf("beta ratio: %f\n", beta_ratio);
+
+    // if (max_width / sqrt(D) < theta) printf("ind: %i, thresh: %f\n", point_index, beta_ratio);
+    
+    // if(is_leaf || (max_width / sqrt(D) < theta && beta_ratio < beta_thresh)) {
+    double beta = betas[point_index]; 
+
+    // LOGISTIC FUNCTION?
+    // -L/(1 + exp(-(beta/overall_beta_min-1)));
+
+    // -2*gap/(1 + exp(-(beta/overall_beta_min - 1))) + gap + init; 
+
+    double gap = 0.1; 
+    // double condition = -2*gap/(1 + exp(-.25*(beta))) + 2*gap + theta;
+    // if (is_leaf || (max_width / sqrt(D) < condition)) {
+    // if (is_leaf || (max_width / sqrt(D) < (1 + exp(overall_beta_min - beta))*theta)) { 
+      // if (is_leaf || (max_width / sqrt(D) < (1 + overall_beta_min/beta) * theta)) {
+      // if (is_leaf || (max_width / sqrt(D) < (1 + exp(-beta))*theta)) { 
+    if (is_leaf || (max_width / sqrt(D) < theta)) {
+        // Compute and add t-SNE force between point and current node
+      // TO DO: Updated D to take into account the degrees of freedom
+      // Ideally we should handle different DoF definitions
+      double dist = sqrt(D); 
+      clock_t start = clock(); 
+      // double nu = (1 + atan(beta + log_beta_com));
+      double nu = 1 + beta + log_beta_com; 
+      // double nu = 1.; 
+      // double nu = (betas[point_index] + exp(log_beta_com))/(2.*overall_beta_min);
+      
+      double D_base = 1.0/(1.0 + D/nu);
+      D = pow(1.0 + D/nu, (-(nu+1)/2.0));
+
+      // double D_base = 1./(1. + D);
+      // D = pow(1. + D, -nu/2.);
+      
+      // D = 1.0/(1 + nu *D); 
+      
+      /* 
+      D = 1.0;
+      for (int i=0; i<(int)((nu+1)/2.); i++) { 
+	D *= D_base;
+      }
+      */
+      
+      double mult = cum_size * D;
+      *sum_Q += mult; // This is going to be Z
+      emb_density += mult*dist;
+      // emb_density += mult; 
+      mult *= (nu+1)/nu*D_base;
+      // mult *= nu/2. * D_base; 
+      // mult *= D_base; 
+      // mult *= nu*D; 
+      clock_t end = clock();
+	// printf("%f %f %f %f\n", neg_f[0], neg_f[1], mult, betas[point_index]); 
+      for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
+      total_time += (float) (end - start) / CLOCKS_PER_SEC;
+      total_count ++; 
+    }
+    else {
+
+        // Recursively apply Barnes-Hut to children
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q, total_count, total_time, emb_density);
+    }
+}
+
+// Compute non-edge forces using Barnes-Hut algorithm (original t-SNE)
+void Grad_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[],
+				     double* sum_Q, int& total_count, double& total_time,
+				     double& emb_density)
 {
     
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -360,20 +469,14 @@ void SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double
         max_width = (max_width > cur_width) ? max_width : cur_width;
     }
     if(is_leaf || max_width / sqrt(D) < theta) {
-    
+      double dist = sqrt(D); 
         // Compute and add t-SNE force between point and current node
       clock_t start = clock();
-      double dist = sqrt(D); 
         D = 1.0 / (1.0 + D);
         double mult = cum_size * D;
         *sum_Q += mult;
-
-	// Distance notion of density 
 	emb_density += mult*dist;
-
-	// Kernel notion of density
 	// emb_density += mult; 
-	
         mult *= D;
 	clock_t end = clock(); 
         for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
@@ -389,24 +492,36 @@ void SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double
 
 
 // Computes edge forces
-void SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f)
+void Grad_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying)
 {
     
     // Loop over all edges in the graph
     unsigned int ind1 = 0;
     unsigned int ind2 = 0;
     double D;
+    double nu = 1.; 
+    
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
+	  if (lying) { 
+	    // nu = (1. + atan(betas[n] + betas[col_P[i]]));
+
+	  // nu = 1.;
+	    nu = 1 + betas[n] + betas[col_P[i]];
+	  }
             // Compute pairwise distance and Q-value
             D = 1.0;
             ind2 = col_P[i] * dimension;
             for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind1 + d] - data[ind2 + d];
-            for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
+            for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d]/nu;
             D = val_P[i] / D;
-            
+	    // D = val_P[i] * pow(D, -(nu+1)/2.); 
+	    // printf("[%f, {%f, %f}]; ", D, buff[0], buff[1]); 
             // Sum positive force
-            for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += 2 * D * buff[d];
+            for(unsigned int d = 0; d < dimension; d++) {
+	      pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
+	    }
+	    // for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }
         ind1 += dimension;
     }
@@ -414,7 +529,7 @@ void SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double*
 
 
 // Print out tree
-void SPTree::print() 
+void Grad_SPTree::print() 
 {
     if(cum_size == 0) {
         printf("Empty node\n");

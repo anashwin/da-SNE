@@ -40,7 +40,7 @@
 #include <fstream>
 #include "vptree.h"
 #include "sptree.h"
-#include "tsne.h"
+#include "da_sne_notails.h"
 
 
 using namespace std;
@@ -92,10 +92,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     // Compute input similarities for exact t-SNE
     double* P; unsigned int* row_P; unsigned int* col_P; double* val_P;
     double* betas = (double*) malloc(N*sizeof(double));
-
-    double* orig_densities = (double*) malloc(N*sizeof(double));
-    double* emb_densities = (double*) calloc(N, sizeof(double));
-    
+    double max_beta; 
     if(exact) {
 
         // Compute similarities
@@ -126,7 +123,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
         // Compute asymmetric pairwise input similarities
         computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity,
-				  (int) (3 * perplexity), betas, orig_densities);
+				  (int) (3 * perplexity), betas, max_beta);
 
         // Symmetrize input similarities
         symmetrizeMatrix(&row_P, &col_P, &val_P, N);
@@ -141,9 +138,6 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     if (beta_file.is_open()) {
     for (int n=0; n<N; n++) {
       beta_file << betas[n] << "\n"; 
-    }
-    for (int n=0; n<N; n++) {
-      beta_file << orig_densities[n] << "\n"; 
     } 
     beta_file.close();
     }
@@ -162,19 +156,13 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 	// Perform main training loop
     if(exact) printf("Input similarities computed in %4.2f seconds!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC);
     else printf("Input similarities computed in %4.2f seconds (sparsity = %f)!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC, (double) row_P[N] / ((double) N * (double) N));
-
-    int sp_count = 0;
-    double sp_time = 0.; 
-    double avg_time = 0.; 
-    
     start = clock();
 
 	for(int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
         if(exact) computeExactGradient(P, Y, N, no_dims, dY);
-        else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta,
-			     emb_densities, sp_count, sp_time);
+        else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta, betas, max_beta, D);
 
         // Update gains
         for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -205,36 +193,17 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
             else {
                 total_time += (float) (end - start) / CLOCKS_PER_SEC;
                 printf("Iteration %d: error is %f (50 iterations in %4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
-		
-		printf("Average depth: %f\n", ((double) sp_count)/(N*50));
-		printf("Power computation time: %f\n",
-		       (sp_time/(sp_count/100000.))); 
-
             }
-	    start = clock();
-	    sp_time = 0.;
-	    sp_count = 0; 
-			
+			start = clock();
         }
     }
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
 
-    beta_file.open("beta_file.txt", fstream::out | fstream::app);
-    if (beta_file.is_open()) {
-      for (int n = 0; n<N; n++) {
-	beta_file << emb_densities[n] << "\n";
-	// printf("%f\n", emb_densities[n]); 
-      } 
-    } 
-
-    
     // Clean up memory
     free(dY);
     free(uY);
     free(gains);
     free(betas);
-    free(orig_densities);
-    free(emb_densities); 
     if(exact) free(P);
     else {
         free(row_P); row_P = NULL;
@@ -246,8 +215,8 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta, double* emb_densities, 
-			   int& total_count, double& total_time)
+void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta,
+			   double *betas, double beta_max, int orig_D)
 {
 
     // Construct space-partitioning tree on current map
@@ -255,20 +224,19 @@ void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, dou
 
     // Compute all terms required for t-SNE gradient
     double sum_Q = .0;
-    double marg_Q = 0.;
+    /*
+    for (int n=0; n<N; n++) {
+      double beta = betas[n];
+      sum_Q += .5*((beta_max/beta) - 1 + log(beta/beta_max))/sqrt(orig_D*N); 
+    } 
+    */
     
     double* pos_f = (double*) calloc(N * D, sizeof(double));
     double* neg_f = (double*) calloc(N * D, sizeof(double));
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
-    for(int n = 0; n < N; n++) {
-      tree->computeNonEdgeForces(n, theta, neg_f + n * D, &marg_Q, total_count, total_time, emb_densities[n]);
+    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q);
 
-    emb_densities[n] /= marg_Q; 
-    sum_Q += marg_Q;
-    marg_Q = 0.;
-    }
-    
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
         dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
@@ -372,12 +340,7 @@ double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val
     SPTree* tree = new SPTree(D, Y, N);
     double* buff = (double*) calloc(D, sizeof(double));
     double sum_Q = .0;
-
-    int foo1 = 0;
-    double foo2 = 0.; 
-    double foo3 = 0.; 
-    
-    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, buff, &sum_Q, foo1, foo2, foo3);
+    for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, buff, &sum_Q);
 
     // Loop over all edges to compute t-SNE error
     int ind1, ind2;
@@ -476,7 +439,8 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas, double* orig_densities) {
+void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K, double* betas,
+				     double& largest_beta) {
 
     if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
@@ -489,6 +453,9 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
     unsigned int* col_P = *_col_P;
     double* val_P = *_val_P;
     double* cur_P = (double*) malloc((N - 1) * sizeof(double));
+
+    double* sums_P = (double*) malloc(N*sizeof(double)); 
+    
     if(cur_P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     row_P[0] = 0;
     for(int n = 0; n < N; n++) row_P[n + 1] = row_P[n] + (unsigned int) K;
@@ -521,9 +488,6 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
 
         // Iterate until we found a good perplexity
         int iter = 0; double sum_P;
-
-	double sums_Q = 0.;
-	
         while(!found && iter < 200) {
 
             // Compute Gaussian kernel row
@@ -563,29 +527,29 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
         }
 
 	betas[n] = beta;
-	
-	orig_densities[n] = 0.; 
+	if (beta > largest_beta) largest_beta = beta; 
         // Row-normalize current row of P and store in matrix
-        for(unsigned int m = 0; m < K; m++) {
-	  cur_P[m] /= sum_P;
-	  // Distance notion of density
-	  // orig_densities[n] += cur_P[m]*distances[m+1];
-
-	  // Kernel notion of density
-	  orig_densities[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
-	  sums_Q += 1./(1 + distances[m+1]*distances[m+1]); 
-	}
-	orig_densities[n] /= sums_Q; 
-	
+        // for(unsigned int m = 0; m < K; m++) cur_P[m] /= sum_P;
+	sums_P[n] = sum_P; 
         for(unsigned int m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
             val_P[row_P[n] + m] = cur_P[m];
         }
     }
 
+    for (unsigned int n=0; n<N; n++) {
+      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/sqrt(D*N));
+
+      extra_term = (extra_term < 10*sums_P[n]) ? extra_term : 10*sums_P[n]; 
+      for (unsigned int m=0; m<K; m++) {
+	val_P[row_P[n] + m] /= (extra_term + sums_P[n]);
+	
+      } 
+    } 
     // Clean up memory
     obj_X.clear();
     free(cur_P);
+    free(sums_P); 
     delete tree;
 }
 

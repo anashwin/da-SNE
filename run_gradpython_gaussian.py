@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-import bhtsne
+import grad_tsne
 from sklearn.decomposition import PCA
 
 # data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
@@ -15,8 +15,8 @@ from sklearn.decomposition import PCA
 # pc_data = pca.fit_transform(data)
 
 infile = sys.argv[1]
-outfile = 'bh_' + infile + '_out.txt'
-betafile = 'bh_' + infile + '_betas.txt'
+outfile = 'bh_grad_' + infile + '_out.txt'
+betafile = 'bh_grad_' + infile + '_betas.txt'
 
 # outfile = sys.argv[2]
 
@@ -27,8 +27,8 @@ if pc_data.shape[0] < pc_data.shape[1]:
 
 print(pc_data.shape)
 
-embedded, betas = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.3,
-                              verbose=True, perplexity=50, max_iter=1000, use_pca=False)
+embedded, betas = grad_tsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.,
+                                        verbose=True, perplexity=30, max_iter=1200, use_pca=False)
 
 np.savetxt(outfile , embedded)
 np.savetxt(betafile, betas)

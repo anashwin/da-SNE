@@ -31,8 +31,8 @@
  */
 
 
-#ifndef SPTREE_H
-#define SPTREE_H
+#ifndef DA_FAST_SPTREE_H
+#define DA_FAST_SPTREE_H
 
 using namespace std;
 
@@ -72,7 +72,12 @@ class SPTree
     bool is_leaf;
     unsigned int size;
     unsigned int cum_size;
-        
+
+    double overall_beta_min;
+
+    // Keep track of all the betas
+    double* betas; 
+    
     // Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
     Cell* boundary;
     
@@ -86,11 +91,11 @@ class SPTree
     unsigned int no_children;
     
 public:
-    SPTree(unsigned int D, double* inp_data, unsigned int N);
-    SPTree(unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
-    SPTree(unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width);
-    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width);
-    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
+    SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N);
+    SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width);
+    SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width);
+    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width);
+    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width);
     ~SPTree();
     void setData(double* inp_data);
     SPTree* getParent();
@@ -101,12 +106,12 @@ public:
     void rebuildTree();
     void getAllIndices(unsigned int* indices);
     unsigned int getDepth();
-    void computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density);
+    void computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q);
     void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f);
     void print();
     
 private:
-    void init(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width);
+    void init(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width);
     void fill(unsigned int N);
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc);
     bool isChild(unsigned int test_index, unsigned int start, unsigned int end);

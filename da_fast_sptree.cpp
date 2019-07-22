@@ -35,8 +35,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cmath>
-#include <ctime>
-#include "sptree.h"
+#include "da_fast_sptree.h"
 
 
 
@@ -89,7 +88,7 @@ bool Cell::containsPoint(double point[])
 
 
 // Default constructor for SPTree -- build tree, too!
-SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N)
+SPTree::SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N)
 {
     
     // Compute mean, width, and height of current map (boundaries of SPTree)
@@ -110,7 +109,7 @@ SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N)
     // Construct SPTree
     double* width = (double*) malloc(D * sizeof(double));
     for(int d = 0; d < D; d++) width[d] = fmax(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
-    init(NULL, D, inp_data, mean_Y, width);
+    init(NULL, D, inp_data, inp_betas, beta_min, mean_Y, width);
     fill(N);
     
     // Clean up memory
@@ -122,36 +121,36 @@ SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N)
 
 
 // Constructor for SPTree with particular size and parent -- build the tree, too!
-SPTree::SPTree(unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width)
+SPTree::SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width)
 {
-    init(NULL, D, inp_data, inp_corner, inp_width);
+  init(NULL, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
     fill(N);
 }
 
 
 // Constructor for SPTree with particular size (do not fill the tree)
-SPTree::SPTree(unsigned int D, double* inp_data, double* inp_corner, double* inp_width)
+SPTree::SPTree(unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width)
 {
-    init(NULL, D, inp_data, inp_corner, inp_width);
+    init(NULL, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
 }
 
 
 // Constructor for SPTree with particular size and parent (do not fill tree)
-SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width) {
-    init(inp_parent, D, inp_data, inp_corner, inp_width);
+SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width) {
+    init(inp_parent, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
 }
 
 
 // Constructor for SPTree with particular size and parent -- build the tree, too!
-SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, unsigned int N, double* inp_corner, double* inp_width)
+SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, unsigned int N, double* inp_corner, double* inp_width)
 {
-    init(inp_parent, D, inp_data, inp_corner, inp_width);
+    init(inp_parent, D, inp_data, inp_betas, beta_min, inp_corner, inp_width);
     fill(N);
 }
 
 
 // Main initialization function
-void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_corner, double* inp_width)
+void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* inp_betas, double beta_min, double* inp_corner, double* inp_width)
 {
     parent = inp_parent;
     dimension = D;
@@ -161,6 +160,10 @@ void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* 
     is_leaf = true;
     size = 0;
     cum_size = 0;
+
+    betas = inp_betas;
+    overall_beta_min = beta_min; 
+
     
     boundary = new Cell(dimension);
     for(unsigned int d = 0; d < D; d++) boundary->setCorner(d, inp_corner[d]);
@@ -263,7 +266,7 @@ void SPTree::subdivide() {
             else                   new_corner[d] = boundary->getCorner(d) + .5 * boundary->getWidth(d);
             div *= 2;
         }
-        children[i] = new SPTree(this, dimension, data, new_corner, new_width);
+        children[i] = new SPTree(this, dimension, data, betas, overall_beta_min, new_corner, new_width);
     }
     free(new_corner);
     free(new_width);
@@ -339,8 +342,7 @@ unsigned int SPTree::getDepth() {
 
 
 // Compute non-edge forces using Barnes-Hut algorithm
-void SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q,
-				  int& total_count, double& total_time, double& emb_density)
+void SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q)
 {
     
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -360,30 +362,34 @@ void SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double
         max_width = (max_width > cur_width) ? max_width : cur_width;
     }
     if(is_leaf || max_width / sqrt(D) < theta) {
-    
+
+
+      unsigned int* my_indices = (unsigned int*) malloc(cum_size*sizeof(unsigned int));
+
+      getAllIndices(my_indices); 
+      
         // Compute and add t-SNE force between point and current node
-      clock_t start = clock();
-      double dist = sqrt(D); 
-        D = 1.0 / (1.0 + D);
-        double mult = cum_size * D;
-        *sum_Q += mult;
-
-	// Distance notion of density 
-	emb_density += mult*dist;
-
-	// Kernel notion of density
-	// emb_density += mult; 
+        double D_base = 1.0 / (1.0 + D);
 	
-        mult *= D;
-	clock_t end = clock(); 
-        for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
-	total_time += (float) (end - start) / CLOCKS_PER_SEC;
-	total_count++; 
+	//double mult = cum_size * D;
+	double mult = 0.; 
+	double nu; 
+	for (int s=0; s < cum_size; s++) {
+
+	  nu = 1. + log(betas[point_index]) + log(betas[my_indices[s]]) - 2*log(overall_beta_min); 
+	  D = pow(1. + D/nu, -(nu+1)/2.); 
+	  // mult += D;
+	  *sum_Q += D;
+	  mult = (nu+1)/nu * D * D_base;
+	  for(unsigned int d = 0; d < dimension; d++) neg_f[d] += mult * buff[d];
+	} 
+        // *sum_Q += mult;
+        // mult *= D;
     }
     else {
 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time, emb_density);
+        for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q);
     }
 }
 
@@ -398,6 +404,7 @@ void SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double*
     double D;
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
+        
             // Compute pairwise distance and Q-value
             D = 1.0;
             ind2 = col_P[i] * dimension;
@@ -406,7 +413,7 @@ void SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double*
             D = val_P[i] / D;
             
             // Sum positive force
-            for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += 2 * D * buff[d];
+            for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }
         ind1 += dimension;
     }
