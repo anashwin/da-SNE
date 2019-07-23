@@ -35,4 +35,4 @@ python run_da_python.py input.txt
 
 which will generate the embedding into the file `bh_dagrad_input_out.txt'; the length-scales
 will be in `bh_dagrad_input_betas.txt', the original and embedded local radii will be
-saved as `bh_deagrad_input_orig_margD.txt` and `bh_dagrad_input_orig_embD.txt` respectively. 
+saved as `bh_deagrad_input_orig_margD.txt` and `bh_dagrad_input_orig_embD.txt` respectively.

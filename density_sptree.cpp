@@ -158,7 +158,7 @@ SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb
 
 
 // Main initialization function
-void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width)
 {
     parent = inp_parent;
@@ -166,7 +166,7 @@ void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* 
     no_children = 2;
     for(unsigned int d = 1; d < D; d++) no_children *= 2;
     data = inp_data;
-
+    all_emb_dens_no_entropy = emb_densities_no_entropy; 
     all_emb_dens = emb_densities; 
     all_log_emb_dens = log_emb_densities; 
     all_log_orig_dens = log_orig_densities; 
@@ -176,7 +176,8 @@ void SPTree::init(SPTree* inp_parent, unsigned int D, double* inp_data, double* 
     log_emb_density_com = 0.; 
     log_orig_density_com = 0.; 
     marg_Q_com = 0.; 
-
+    emb_density_no_entropy_com = 0.; 
+    
     is_leaf = true;
     size = 0;
     cum_size = 0;

@@ -86,12 +86,15 @@ class SPTree
     double* all_log_emb_dens;  // normalized to mean zero
     double* all_log_orig_dens;  // normalized to mean zero, variance 1
     double* all_marg_Q; // marginals at each point 
+    double* all_emb_dens_no_entropy; // embedded density not considering the entropy
 
-    double emb_density_com; 
+    
+    double emb_density_com;
+    double emb_density_no_entropy_com; 
     double log_emb_density_com;
     double log_orig_density_com;
     double marg_Q_com; 
-
+    
     // Children
     SPTree** children;
     unsigned int no_children;
@@ -122,7 +125,7 @@ public:
     void print();
     
 private:
-    void init(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+    void init(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width);
     void fill(unsigned int N);
     unsigned int getAllIndices(unsigned int* indices, unsigned int loc);
