@@ -216,6 +216,9 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 			       iter < stop_lying_iter, iter >= density_iter, 
 			       density_weight);
 
+	  if (iter >=density_iter) {
+	    printf("Density Iter # %d\n", iter); 
+	  } 
 	  /*
 	  for (int i=1500; i<1550; i++) {
 	    printf("Beta = %f\n AND min_beta = %f\n", log_betas[i], log(min_beta)); 
@@ -332,7 +335,6 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 			     bool lying, bool density, double density_weight)
 {
 
-
   // DEBUG!!
   // density = true; 
   // for(int n=0; n<N; n++) {
@@ -360,7 +362,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    double var_ed = 1.; 
+    double var_ed = .01; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
@@ -394,6 +396,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
       }
+      printf("tree generated\n");
       
       // Compute mean of the log embedded densities
       for(int n=0; n < N; n++) { 
@@ -406,8 +409,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	var_ed += log_emb_densities[n]*log_emb_densities[n] / (N - 1);
 	cov_ed += log_emb_densities[n]*log_orig_densities[n] / (N - 1);
       } 
-
-      // DEBUG!
+      printf("covar and var computed\n: %f, %f", cov_ed, var_ed); 
+      // DEBUG
       // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed); 
       d_tree = new SPTree(D, Y, emb_densities, log_emb_densities, log_orig_densities, 
 			    all_marg_Q, N); 
@@ -416,7 +419,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       for(int n=0; n < N; n++) { 
 	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D); 
       }
-
+      printf("density forces computed\n");
+      
       free(log_emb_densities); 
       free(all_marg_Q); 
       delete d_tree; 

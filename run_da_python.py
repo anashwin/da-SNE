@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from bh_da_sne_init import run_bh_tsne
-From sklearn.decomposition import PCA
+from sklearn.decomposition import PCA
 
 # data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
 
@@ -20,7 +20,14 @@ infile = sys.argv[1]
 if '.txt' in infile:
     infile = infile[:infile.find('.txt')]
 
-file_root = 'bh_dagrad_{}_{}.txt'
+indir = ''
+while '/' in infile:
+    indir += infile[:infile.find('/') + 1]
+    infile = infile[infile.find('/')+ 1 : ]
+
+outdir = 'out/'
+
+file_root = '{}bh_dagrad_{}_{}.txt'
 
 # outfile = 'bh_da_' + infile + '_out.txt'
 # betafile = 'bh_da_' + infile + '_betas.txt'
@@ -38,7 +45,7 @@ if len(sys.argv) > 2:
     # betafile = 'bh_da_init_' + infile + '_betas.txt'
 
     
-pc_data = np.loadtxt(infile+'.txt').T
+pc_data = np.loadtxt(indir + infile+'.txt').T
 
 if pc_data.shape[0] < pc_data.shape[1]:
     pc_data = pc_data.T
@@ -56,10 +63,9 @@ print(pc_data.shape)
 embedded,betas,orig_densities,emb_densities=run_bh_tsne(pc_data, initial_dims=pc_data.shape[1],
                                                         theta=0.3, verbose=True, perplexity=50,
                                                         max_iter=max_iter, use_pca=False,
-                                                        Y_samples = Y_samples, weight=.1)
+                                                        Y_samples = Y_samples, weight=1)
 
-print embedded.shape, betas.shape, 
-np.savetxt(file_root.format(infile, 'out'), embedded)
-np.savetxt(file_root.format(infile, 'betas'), betas)
-np.savetxt(file_root.format(infile, 'marg_origD'), orig_densities)
-np.savetxt(file_root.format(infile, 'marg_embD'), emb_densities)
+np.savetxt(file_root.format(outdir, infile, 'out'), embedded)
+np.savetxt(file_root.format(outdir, infile, 'betas'), betas)
+np.savetxt(file_root.format(outdir, infile, 'marg_origD'), orig_densities)
+np.savetxt(file_root.format(outdir, infile, 'marg_embD'), emb_densities)
