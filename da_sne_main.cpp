@@ -16,7 +16,6 @@ int main() {
     int rand_seed = -1;
     DA_SNE* tsne = new DA_SNE();
     
-    printf("RUNNING!!\n");
     // Read the parameters and the dataset
     if(tsne->load_data(&data, &origN, &D, &no_dims, &theta, &beta_thresh, &perplexity, &rand_seed, &max_iter, &init_Y, &density_weight)) {
 		// Make dummy landmarks

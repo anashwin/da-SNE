@@ -1,7 +1,7 @@
 import sys
 import numpy as np
-import bh_da_sne_init
-from sklearn.decomposition import PCA
+from bh_da_sne_init import run_bh_tsne
+From sklearn.decomposition import PCA
 
 # data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
 
@@ -53,9 +53,10 @@ print(pc_data.shape)
 
 ## print(pc_data.shape)
 
-embedded, betas, orig_densities, emb_densities = bh_da_sne_init.run_bh_tsne(pc_data, 
-initial_dims=pc_data.shape[1], theta=0.3,
-                                             thresh=1000.0, verbose=True, perplexity=50, max_iter=max_iter, use_pca=False, Y_samples = Y_samples)
+embedded,betas,orig_densities,emb_densities=run_bh_tsne(pc_data, initial_dims=pc_data.shape[1],
+                                                        theta=0.3, verbose=True, perplexity=50,
+                                                        max_iter=max_iter, use_pca=False,
+                                                        Y_samples = Y_samples, weight=.1)
 
 print embedded.shape, betas.shape, 
 np.savetxt(file_root.format(infile, 'out'), embedded)

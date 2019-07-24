@@ -360,7 +360,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    double var_ed = 10.; 
+    double var_ed = 1.; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
@@ -580,7 +580,6 @@ double DA_SNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* v
     for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, buff, &sum_Q,
 							  foo1, foo2, foo3);
     
-    printf("sum: %f\n", sum_Q); 
     // Loop over all edges to compute t-SNE error
     int ind1, ind2;
     double C = .0, Q;
