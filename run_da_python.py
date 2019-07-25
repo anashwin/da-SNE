@@ -26,7 +26,6 @@ file_root = 'bh_dagrad_{}_{}.txt'
 # betafile = 'bh_da_' + infile + '_betas.txt'
 # orig_d_file = 'bh
 
-
 Y_samples = None
 max_iter = 1000
 if len(sys.argv) > 2:
