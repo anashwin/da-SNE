@@ -893,7 +893,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	self_loops[n] = 0.;
 
 	// val_P[row_P[n] + m] *= 12.0/(self_loops[n] + sums_P[n]); 
-	val_P[row_P[n] + m] *= (.1+self_loops[n])/ sums_P[n];
+	val_P[row_P[n] + m] *= (1+self_loops[n])/ sums_P[n];
 	
 	// val_P[row_P[n] + m] *= 12.0/ sums_P[n]; 
 	// val_P[row_P[n] + m] /=  (self_loops[n] + sums_P[n]);

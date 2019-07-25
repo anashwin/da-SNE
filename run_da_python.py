@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from bh_da_sne_init import run_bh_tsne
-From sklearn.decomposition import PCA
+from sklearn.decomposition import PCA
 
 # data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
 
