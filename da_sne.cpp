@@ -375,7 +375,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       for(int n = 0; n < N; n++) {
 	double aux_sum = 0.; 
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]
+				   &marg_Q, total_count, total_time, emb_densities[n], 
 				   aux_sum);
 	sum_Q += marg_Q;
 	// emb_densities[n] /= marg_Q;
@@ -419,7 +419,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       // DEBUG!
       // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed); 
       d_tree = new SPTree(D, Y, emb_densities, log_emb_densities,
-			  emb_densities_no_entroy, log_orig_densities, 
+			  emb_densities_no_entropy, log_orig_densities, 
 			  all_marg_Q, N); 
 
 
@@ -434,8 +434,9 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     }  
     else {
       for(int n = 0; n < N; n++) {
+	double trash = 0.; 
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n], 0.);
+				   &marg_Q, total_count, total_time, emb_densities[n], trash); 
 	
 	emb_densities[n] /= marg_Q; 
 	sum_Q += marg_Q;
@@ -585,11 +586,11 @@ double DA_SNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* v
   int foo1;
   double foo2; 
   double foo3 = 0.; 
-  
+  double foo4 = 0.; 
     double* buff = (double*) calloc(D, sizeof(double));
     double sum_Q = .0;
     for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, beta_thresh, buff, &sum_Q,
-							  foo1, foo2, foo3);
+							  foo1, foo2, foo3, foo4);
     
     printf("sum: %f\n", sum_Q); 
     // Loop over all edges to compute t-SNE error
@@ -865,7 +866,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 
 	sums_P[n] = sum_P;
 
-	double aux_sum = 0. 
+	double aux_sum = 0.; 
 	
 	orig_density[n] = 0.;
 	sums_Q[n] = 0.; 

@@ -77,7 +77,8 @@ SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* 
 
 
 // Constructor for SPTree with particular size and parent -- build the tree, too!
-SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,
+	       double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width)
 {
   init(NULL, D, inp_data, emb_densities, log_emb_densities, emb_densities_no_entropy,
@@ -249,7 +250,8 @@ void SPTree::subdivide() {
             else                   new_corner[d] = boundary->getCorner(d) + .5 * boundary->getWidth(d);
             div *= 2;
         }
-        children[i] = new SPTree(this, dimension, data, all_emb_dens, all_log_emb_dens, 
+        children[i] = new SPTree(this, dimension, data, all_emb_dens, all_log_emb_dens,
+				 all_emb_dens_no_entropy, 
 				 all_log_orig_dens, all_marg_Q, new_corner, new_width);
     }
     free(new_corner);
@@ -366,7 +368,7 @@ void SPTree::computeDensityForces(unsigned int point_index, double theta, double
 		      * (log( D / all_marg_Q[point_index]) * (1 - sq_dist) + 2 * sq_dist
 			 + 2 * dist * all_emb_dens_no_entropy[point_index]));
       // dr_me is d r_j / d_{ij} (uses the centers of mass)
-      double dr_you = (D * D / (marg_Q_com*emb_dens_com)
+      double dr_you = (D * D / (marg_Q_com*emb_density_com)
 		       * (log( D / marg_Q_com) * (1-sq_dist) + 2*sq_dist
 			  + 2*dist * emb_density_no_entropy_com)); 
       
