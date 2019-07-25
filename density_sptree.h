@@ -100,15 +100,18 @@ class SPTree
     unsigned int no_children;
     
 public:
-    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,
+	    double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, unsigned int N);
-    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,
+	    double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width);
-    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+    SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,
+	    double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width);
-    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,  double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width);
-    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+    SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,  double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width);
     ~SPTree();
     void setData(double* inp_data);

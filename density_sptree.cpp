@@ -40,59 +40,10 @@
 #include "density_sptree.h"
 
 
-//#include "cell.h"
-/*
-// Constructs cell
-Cell::Cell(unsigned int inp_dimension) {
-    dimension = inp_dimension;
-    corner = (double*) malloc(dimension * sizeof(double));
-    width  = (double*) malloc(dimension * sizeof(double));
-}
-
-Cell::Cell(unsigned int inp_dimension, double* inp_corner, double* inp_width) {
-    dimension = inp_dimension;
-    corner = (double*) malloc(dimension * sizeof(double));
-    width  = (double*) malloc(dimension * sizeof(double));
-    for(int d = 0; d < dimension; d++) setCorner(d, inp_corner[d]);
-    for(int d = 0; d < dimension; d++) setWidth( d,  inp_width[d]);
-}
-
-// Destructs cell
-Cell::~Cell() {
-    free(corner);
-    free(width);
-}
-
-double Cell::getCorner(unsigned int d) {
-    return corner[d];
-}
-
-double Cell::getWidth(unsigned int d) {
-    return width[d];
-}
-
-void Cell::setCorner(unsigned int d, double val) {
-    corner[d] = val;
-}
-
-void Cell::setWidth(unsigned int d, double val) {
-    width[d] = val;
-}
-
-// Checks whether a point lies in a cell
-bool Cell::containsPoint(double point[])
-{
-    for(int d = 0; d < dimension; d++) {
-        if(corner[d] - width[d] > point[d]) return false;
-        if(corner[d] + width[d] < point[d]) return false;
-    }
-    return true;
-}
-*/
-
 // Default constructor for SPTree -- build tree, too!
-SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
-	   double* log_orig_densities, double* marg_Q, unsigned int N)
+SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,
+	       double* emb_densities_no_entropy, 
+	       double* log_orig_densities, double* marg_Q, unsigned int N)
 {
     
     // Compute mean, width, and height of current map (boundaries of SPTree)
@@ -113,7 +64,8 @@ SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* 
     // Construct SPTree
     double* width = (double*) malloc(D * sizeof(double));
     for(int d = 0; d < D; d++) width[d] = fmax(max_Y[d] - mean_Y[d], mean_Y[d] - min_Y[d]) + 1e-5;
-    init(NULL, D, inp_data, emb_densities, log_emb_densities, log_orig_densities, marg_Q,mean_Y, width);
+    init(NULL, D, inp_data, emb_densities, log_emb_densities, emb_densities_no_entropy,
+	 log_orig_densities, marg_Q,mean_Y, width);
     fill(N);
     
     // Clean up memory
@@ -128,31 +80,36 @@ SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* 
 SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
 	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width)
 {
-  init(NULL, D, inp_data, emb_densities, log_emb_densities, log_orig_densities, marg_Q, inp_corner, inp_width);
+  init(NULL, D, inp_data, emb_densities, log_emb_densities, emb_densities_no_entropy,
+       log_orig_densities, marg_Q, inp_corner, inp_width);
     fill(N);
 }
 
 
 // Constructor for SPTree with particular size (do not fill the tree)
-SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
-	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width)
+SPTree::SPTree(unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,
+	        double* emb_densities_no_entropy, 
+	       double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width)
 {
-  init(NULL, D, inp_data, emb_densities, log_emb_densities, log_orig_densities, marg_Q, inp_corner, inp_width);
+  init(NULL, D, inp_data, emb_densities, log_emb_densities, emb_densities_no_entropy,
+       log_orig_densities, marg_Q, inp_corner, inp_width);
 }
 
 
 // Constructor for SPTree with particular size and parent (do not fill tree)
-SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,  double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, double* inp_corner, double* inp_width) {
-  init(inp_parent, D, inp_data, emb_densities, log_emb_densities, log_orig_densities, marg_Q,inp_corner, inp_width);
+  init(inp_parent, D, inp_data, emb_densities, log_emb_densities, emb_densities_no_entropy,
+       log_orig_densities, marg_Q,inp_corner, inp_width);
 }
 
 
 // Constructor for SPTree with particular size and parent -- build the tree, too!
-SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities, 
+SPTree::SPTree(SPTree* inp_parent, unsigned int D, double* inp_data, double* emb_densities, double* log_emb_densities,  double* emb_densities_no_entropy, 
 	   double* log_orig_densities, double* marg_Q, unsigned int N, double* inp_corner, double* inp_width)
 {
-  init(inp_parent, D, inp_data, emb_densities, log_emb_densities, log_orig_densities, marg_Q, inp_corner, inp_width);
+  init(inp_parent, D, inp_data, emb_densities, log_emb_densities,
+       emb_densities_no_entropy, log_orig_densities, marg_Q, inp_corner, inp_width);
     fill(N);
 }
 
@@ -238,11 +195,15 @@ bool SPTree::insert(unsigned int new_index)
     for(unsigned int d = 0; d < dimension; d++) center_of_mass[d] *= mult1;
     for(unsigned int d = 0; d < dimension; d++) center_of_mass[d] += mult2 * point[d];
     
-    emb_density_com = mult1*emb_density_com + mult2*all_emb_dens[new_index]; 
+    emb_density_com = mult1*emb_density_com + mult2*all_emb_dens[new_index];
     log_emb_density_com = mult1*log_emb_density_com + mult2*all_log_emb_dens[new_index];
-    log_orig_density_com = mult1*log_orig_density_com + mult2*all_log_orig_dens[new_index]; 
+    log_orig_density_com = mult1*log_orig_density_com + mult2*all_log_orig_dens[new_index];
+    emb_density_no_entropy_com = mult1*emb_density_no_entropy_com
+      + mult2 * all_emb_dens_no_entropy[new_index];     
     marg_Q_com = mult1*marg_Q_com + mult2*all_marg_Q[new_index];
+    
 
+    
     // If there is space in this quad tree and it is a leaf, add the object here
     if(is_leaf && size < QT_NODE_CAPACITY) {
         index[size] = new_index;
@@ -392,17 +353,32 @@ void SPTree::computeDensityForces(unsigned int point_index, double theta, double
       double sq_dist = D; 
       D = 1.0 / (1.0 + D);
       double mult = cum_size * D / dist;
+
+      /*
       double dr_me = D / all_marg_Q[point_index] 
 	* (2*dist + (1 - sq_dist) / all_emb_dens[point_index]); 
       double dr_you = D / marg_Q_com
 	* (2*dist + (1 - sq_dist) / emb_density_com); 
+       */
 
+      // dr_me is d r_{i} / d_{ij}
+      double dr_me = (D * D  / (all_marg_Q[point_index] * all_emb_dens[point_index])
+		      * (log( D / all_marg_Q[point_index]) * (1 - sq_dist) + 2 * sq_dist
+			 + 2 * dist * all_emb_dens_no_entropy[point_index]));
+      // dr_me is d r_j / d_{ij} (uses the centers of mass)
+      double dr_you = (D * D / (marg_Q_com*emb_dens_com)
+		       * (log( D / marg_Q_com) * (1-sq_dist) + 2*sq_dist
+			  + 2*dist * emb_density_no_entropy_com)); 
+      
       for(unsigned int d = 0; d < dimension; d++) {
 	dense_f1[d] += mult * (all_log_orig_dens[point_index]*dr_me 
 			       + log_orig_density_com*dr_you) * buff[d]; 
 	dense_f2[d] += mult * (all_log_emb_dens[point_index]*dr_me
 			       + log_emb_density_com*dr_you) * buff[d]; 
 	}
+
+
+      
     }
     else {
         // Recursively apply Barnes-Hut to children

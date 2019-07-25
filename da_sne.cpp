@@ -853,6 +853,8 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	*/
 
 	sums_P[n] = sum_P;
+
+	double aux_sum = 0. 
 	
 	orig_density[n] = 0.;
 	sums_Q[n] = 0.; 
@@ -860,10 +862,15 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
             val_P[row_P[n] + m] = cur_P[m];
 	    // orig_density[n] += cur_P[m]*distances[m+1]/sum_P;
-	    orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
+	    orig_density[n] += (distances[m+1]/(1 + distances[m+1]*distances[m+1])
+				* log(1 + distances[m+1]*distances[m+1]));
+
+	    aux_sum += distances[m+1] / (1 + distances[m+1]*distances[m+1]);
+	
 	    sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]); 
         }
-	orig_density[n] /= sums_Q[n];
+	// orig_density[n] /= sums_Q[n];
+	orig_density[n] = (orig_density[n] + log(sums_Q[n]) * aux_sum) / sums_Q[n]; 
 	
 	/*
 	orig_density[n] = sqrt(beta)*(1 + sum_P);
@@ -894,7 +901,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	self_loops[n] = 0.;
 
 	// val_P[row_P[n] + m] *= 12.0/(self_loops[n] + sums_P[n]); 
-	val_P[row_P[n] + m] *= (.1+self_loops[n])/ sums_P[n];
+	val_P[row_P[n] + m] *= (1.+self_loops[n])/ sums_P[n];
 	
 	// val_P[row_P[n] + m] *= 12.0/ sums_P[n]; 
 	// val_P[row_P[n] + m] /=  (self_loops[n] + sums_P[n]);
