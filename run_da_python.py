@@ -63,7 +63,7 @@ print(pc_data.shape)
 embedded,betas,orig_densities,emb_densities=run_bh_tsne(pc_data, initial_dims=pc_data.shape[1],
                                                         theta=0.3, verbose=True, perplexity=50,
                                                         max_iter=max_iter, use_pca=False,
-                                                        Y_samples = Y_samples, weight=1)
+                                                        Y_samples = Y_samples, weight=.1)
 
 np.savetxt(file_root.format(outdir, infile, 'out'), embedded)
 np.savetxt(file_root.format(outdir, infile, 'betas'), betas)

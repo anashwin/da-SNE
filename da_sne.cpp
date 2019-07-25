@@ -439,6 +439,10 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double std_ed = sqrt(var_ed) + DBL_MIN; // standard deviation
     double std_var_ed = std_ed * var_ed + DBL_MIN; // variance ^ 3/2
 
+    // for fun
+    std_ed = 1.;
+    std_var_ed = 1.; 
+    
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
       // dC[i] = betas[(int)(i/D)]*pos_f[i] - (neg_f[i] / sum_Q);
