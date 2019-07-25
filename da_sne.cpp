@@ -364,16 +364,22 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
+
+
     // double emb_density = 0.;
     lying = false;
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
-    if (lying) { 
+    if (lying) {
+      
       for(int n = 0; n < N; n++) {
+	double aux_sum = 0.; 
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, total_count, total_time, emb_densities[n]
+				   aux_sum);
 	sum_Q += marg_Q;
-	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= marg_Q;
+	emb_densities[n] = (emb_densities[n] + log(marg_Q) * aux_sum) / marg_Q; 
 
 	// Marginal notion of density 
 	// emb_densities[n] = marg_Q; 
@@ -384,12 +390,15 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
       double* all_marg_Q = (double*) malloc(N * sizeof(double)); 
       double* log_emb_densities = (double*) malloc(N * sizeof(double)); 
-
+      double* emb_densities_no_entropy = (double*) malloc(N*sizeof(double)); 
       for(int n = 0; n < N; n++) {
+	double aux_sum = 0.; 
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, total_count, total_time, emb_densities[n], aux_sum);
 	
-	emb_densities[n] /= marg_Q; 
+	// emb_densities[n] /= marg_Q;
+	emb_densities[n] = (emb_densities[n] + log(marg_Q) * aux_sum) / marg_Q;
+	emb_densities_no_entropy[n] = aux_sum / marg_Q; 
 	all_marg_Q[n] = marg_Q; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
@@ -409,14 +418,16 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
       // DEBUG!
       // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed); 
-      d_tree = new SPTree(D, Y, emb_densities, log_emb_densities, log_orig_densities, 
-			    all_marg_Q, N); 
+      d_tree = new SPTree(D, Y, emb_densities, log_emb_densities,
+			  emb_densities_no_entroy, log_orig_densities, 
+			  all_marg_Q, N); 
 
 
       for(int n=0; n < N; n++) { 
 	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D); 
       }
 
+      free(emb_densities_no_entropy); 
       free(log_emb_densities); 
       free(all_marg_Q); 
       delete d_tree; 
@@ -424,7 +435,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     else {
       for(int n = 0; n < N; n++) {
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, total_count, total_time, emb_densities[n], 0.);
 	
 	emb_densities[n] /= marg_Q; 
 	sum_Q += marg_Q;

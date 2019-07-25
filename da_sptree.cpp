@@ -389,7 +389,8 @@ void DA_SPTree::computeDensityForces(unsigned int point_index, double theta, dou
 */
 
 // Compute non-edge forces using Barnes-Hut algorithm (with the full DA_SNE algorithm)
-void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density)
+void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density,
+				     double& aux_sum)
 {
   
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -453,8 +454,9 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 	D *= D_base;
       }
       */
-      
+
       double mult = cum_size * D;
+
       *sum_Q += mult; // This is going to be Z
       emb_density += mult*dist;
       // emb_density += mult; 
@@ -471,14 +473,14 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
     else {
 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q, total_count, total_time, emb_density);
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, beta_thresh, neg_f, sum_Q, total_count, total_time, emb_density, aux_sum);
     }
 }
 
 // Compute non-edge forces using Barnes-Hut algorithm (original t-SNE)
 void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[],
 				     double* sum_Q, int& total_count, double& total_time,
-				     double& emb_density)
+				     double& emb_density, double& aux_sum)
 {
     
     // Make sure that we spend no time on empty nodes or self-interactions
@@ -504,7 +506,8 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
         D = 1.0 / (1.0 + D);
         double mult = cum_size * D;
         *sum_Q += mult;
-	emb_density += mult*dist;
+	emb_density += mult*dist*log(D);
+	aux_sum += mult*dist; 
 	// emb_density += mult; 
         mult *= D;
 	clock_t end = clock(); 
@@ -515,7 +518,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
     else {
 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time, emb_density);
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time, emb_density, aux_sum);
     }
 }
 
