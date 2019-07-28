@@ -506,7 +506,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
         D = 1.0 / (1.0 + D);
         double mult = cum_size * D;
         *sum_Q += mult;
-	emb_density += mult*dist*log(D);
+	emb_density -= mult*dist*log(D);
 	aux_sum += mult*dist; 
 	// emb_density += mult; 
         mult *= D;

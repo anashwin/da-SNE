@@ -332,9 +332,9 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 			     bool lying, bool density, double density_weight)
 {
 
-
+  
   // DEBUG!!
-  // density = true; 
+  //  density = false; 
   // for(int n=0; n<N; n++) {
   //   printf("beta: %4.2f\n", betas[n]); 
   // } 
