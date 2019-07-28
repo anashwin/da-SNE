@@ -362,7 +362,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    double var_ed = .01; 
+    double var_ed = .1; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
@@ -409,7 +409,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	var_ed += log_emb_densities[n]*log_emb_densities[n] / (N - 1);
 	cov_ed += log_emb_densities[n]*log_orig_densities[n] / (N - 1);
       } 
-      printf("covar and var computed\n: %f, %f", cov_ed, var_ed); 
+      printf("covar and var computed: %f, %f\n", cov_ed, var_ed); 
       // DEBUG
       // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed); 
       d_tree = new SPTree(D, Y, emb_densities, log_emb_densities, log_orig_densities, 
@@ -419,7 +419,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       for(int n=0; n < N; n++) { 
 	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D); 
       }
-      printf("density forces computed\n");
+      printf("correlation: %f\n", cov_ed / sqrt(var_ed)); 
       
       free(log_emb_densities); 
       free(all_marg_Q); 
@@ -440,9 +440,10 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double std_var_ed = std_ed * var_ed + DBL_MIN; // variance ^ 3/2
 
     // for fun
+    /*
     std_ed = 1.;
     std_var_ed = 1.; 
-    
+    */
     // Compute final t-SNE gradient
     for(int i = 0; i < N * D; i++) {
       // dC[i] = betas[(int)(i/D)]*pos_f[i] - (neg_f[i] / sum_Q);
@@ -862,15 +863,19 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	sums_P[n] = sum_P;
 	
 	orig_density[n] = 0.;
-	sums_Q[n] = 0.; 
+	sums_Q[n] = 0.;
+
         for(unsigned int m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
             val_P[row_P[n] + m] = cur_P[m];
-	    // orig_density[n] += cur_P[m]*distances[m+1]/sum_P;
-	    orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
-	    sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]); 
+	    orig_density[n] += cur_P[m]*distances[m+1]/sum_P;
+	    // orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
+	    // sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]);
+	    double buff = pow(1. + distances[m+1]*distances[m+1]/D, -(1. + D)/2.);
+	    // orig_density[n] += distances[m+1]*buff;
+	    sums_Q[n] += buff; 
         }
-	orig_density[n] /= sums_Q[n];
+	// orig_density[n] /= sums_Q[n];
 	
 	/*
 	orig_density[n] = sqrt(beta)*(1 + sum_P);
