@@ -171,17 +171,23 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     
     double* log_orig_densities = (double*) malloc(N*sizeof(double)); 
     double mean_od = 0.; 
-    double var_od = 0.; 
+    double var_od = 0.;
     for (int n=0; n<N; n++) {
       log_orig_densities[n] = log(orig_densities[n]); 
       mean_od += log_orig_densities[n]/N; 
     }
     for (int n=0; n<N; n++) { 
       var_od += (log_orig_densities[n] - mean_od)*(log_orig_densities[n] - mean_od) / (N-1); 
-    } 
+    }
+
+    double min_log_orig_density = DBL_MAX; 
+    
     for (int n=0; n<N; n++) { 
       log_orig_densities[n] -= mean_od; 
       log_orig_densities[n] /= sqrt(var_od);
+      if (log_orig_densities[n] < min_log_orig_density) {
+	min_log_orig_density = log_orig_densities[n];
+      } 
     } 
 
     // Lie about the P-values
@@ -214,7 +220,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 			       emb_densities, log_orig_densities, 
 			       min_beta, max_beta, beta_thresh, D, self_loops, sp_count, sp_time,
 			       iter < stop_lying_iter, iter >= density_iter, 
-			       density_weight);
+			       density_weight, min_log_orig_density);
 
 	  if (iter >=density_iter) {
 	    printf("Density Iter # %d\n", iter); 
@@ -332,7 +338,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 			     double* log_orig_densities, 
 			     double beta_min, double beta_max, double beta_thresh, int orig_D,
 			     double* self_loops, int& total_count, double& total_time,
-			     bool lying, bool density, double density_weight)
+			     bool lying, bool density, double density_weight,
+			     double min_log_orig_density)
 {
 
   // DEBUG!!
@@ -448,8 +455,10 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     for(int i = 0; i < N * D; i++) {
       // dC[i] = betas[(int)(i/D)]*pos_f[i] - (neg_f[i] / sum_Q);
       dC[i] = pos_f[i] - (neg_f[i] / sum_Q); 
-      if (density) { 
-	dC[i]-=density_weight*(dense_f1[i]/std_ed-cov_ed*dense_f2[i]/std_var_ed)/(N-1); 
+      if (density) {
+	int n = (int) i / D; 
+	dC[i]-=density_weight // /exp(log_orig_densities[n] - min_log_orig_density)
+	*(dense_f1[i]/std_ed-cov_ed * dense_f2[i]/std_var_ed)/(N-1); 
       } 
     }
     /*
@@ -902,8 +911,8 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 
 	// self_loops[n] = (extra_term < 10*sums_P[n]) ? extra_term : 10*sums_P[n];
 	// self_loops[n] = (extra_term < 12.0) ? extra_term : 12.0; 
-	// self_loops[n] = extra_term;
-	self_loops[n] = 0.;
+	self_loops[n] = extra_term;
+	// self_loops[n] = 0.;
 
 	// val_P[row_P[n] + m] *= 12.0/(self_loops[n] + sums_P[n]); 
 	val_P[row_P[n] + m] *= (1+self_loops[n])/ sums_P[n];
