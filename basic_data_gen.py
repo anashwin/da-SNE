@@ -3,7 +3,7 @@
 import numpy as np
 
 flavor = 'drastic'
-D = 3
+D = 10
 
 K = 10
 

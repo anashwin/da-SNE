@@ -215,6 +215,8 @@ def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, randseed=-1, verbose=
 
         res = []
         betas = []
+        orig_D = []
+        emb_D = []
         N,D = data.shape
         
         for ctr, result in enumerate(bh_tsne(tmp_dir_path, verbose)):
@@ -224,11 +226,16 @@ def run_bh_tsne(data, no_dims=2, perplexity=50, theta=0.5, randseed=-1, verbose=
                 for r in result:
                     sample_res.append(r)
                 res.append(sample_res)
-            else:
+            elif ctr < 2*N:
                 betas.append(result)
-        
+            elif ctr < 3*N:
+                orig_D.append(result)
+            else:
+                emb_D.append(result)
+                
         rmtree(tmp_dir_path)
-        return np.asarray(res, dtype='float64'), np.asarray(betas, dtype='float64')
+        return (np.asarray(res, dtype='float64'), np.asarray(betas, dtype='float64'),
+                np.asarray(orig_D, dtype='float64'), np.asarray(emb_D, dtype='float64'))
 
 
 def main(args):
