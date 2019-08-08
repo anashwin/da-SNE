@@ -374,7 +374,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
     double marg_Q = 0.;
     // double emb_density = 0.;
-    lying = false;
+    // lying = false;
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
     if (lying) { 
@@ -901,24 +901,26 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
     double max_ratio = log(largest_beta/smallest_beta); 
     for(unsigned int n=0; n<N; n++) {
 
-      // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(log(betas[n]/smallest_beta)*D));
+      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
+			   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
       // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(D));
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
-      double extra_term = log(betas[n]/smallest_beta) / max_ratio;
+      // double extra_term = log(D * betas[n]/smallest_beta) / max_ratio;
+      
       
       for(unsigned int m=0; m<K; m++) {
 
-	// self_loops[n] = (extra_term < 10*sums_P[n]) ? extra_term : 10*sums_P[n];
+	self_loops[n] = (extra_term < 10*sums_P[n]) ? extra_term : 10*sums_P[n];
 	// self_loops[n] = (extra_term < 12.0) ? extra_term : 12.0; 
 	self_loops[n] = extra_term;
 	// self_loops[n] = 0.;
 
 	// val_P[row_P[n] + m] *= 12.0/(self_loops[n] + sums_P[n]); 
-	val_P[row_P[n] + m] *= (1+self_loops[n])/ sums_P[n];
+	// val_P[row_P[n] + m] *= (1+self_loops[n])/ sums_P[n];
 	
 	// val_P[row_P[n] + m] *= 12.0/ sums_P[n]; 
-	// val_P[row_P[n] + m] /=  (self_loops[n] + sums_P[n]);
+	val_P[row_P[n] + m] /=  (self_loops[n] + sums_P[n]);
 	// self_loops[n] = sums_P[n] / (self_loops[n] + sums_P[n]); 
 	// val_P[row_P[n] + m] *= (12.0 + self_loops[n])/sums_P[n];
 	// val_P[row_P[n] + m] *= 12.0 + self_loops[n]; 

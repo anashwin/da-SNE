@@ -27,7 +27,7 @@ while '/' in infile:
 
 outdir = 'out/'
 
-file_root = '{}bh_dagrad_{}_{}.txt'
+file_root = '{}bh_dagrad-dimnu_{}_{}.txt'
 
 # outfile = 'bh_da_' + infile + '_out.txt'
 # betafile = 'bh_da_' + infile + '_betas.txt'
