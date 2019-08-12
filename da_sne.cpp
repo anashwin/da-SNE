@@ -901,10 +901,10 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
     double max_ratio = log(largest_beta/smallest_beta); 
     for(unsigned int n=0; n<N; n++) {
 
-      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
-			   /(.0001 + log(betas[n]/smallest_beta)*D));
+      // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
+      // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
-      // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(D));
+      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(log(D)));
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = log(D * betas[n]/smallest_beta) / max_ratio;
       
