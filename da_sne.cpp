@@ -904,16 +904,16 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
-      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))/(log(D)));
+      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))/D; 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
-      // double extra_term = log(D * betas[n]/smallest_beta) / max_ratio;
+      // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
       
       
       for(unsigned int m=0; m<K; m++) {
 
 	self_loops[n] = (extra_term < 10*sums_P[n]) ? extra_term : 10*sums_P[n];
 	// self_loops[n] = (extra_term < 12.0) ? extra_term : 12.0; 
-	self_loops[n] = extra_term;
+	// self_loops[n] = extra_term;
 	// self_loops[n] = 0.;
 
 	// val_P[row_P[n] + m] *= 12.0/(self_loops[n] + sums_P[n]); 
