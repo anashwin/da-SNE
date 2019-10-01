@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from bh_da_sne_init import run_bh_tsne
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, TruncatedSVD
 
 # data = np.loadtxt('../example_data/pollen.txt',delimiter=',').T
 
@@ -20,7 +20,7 @@ infile = sys.argv[1]
 if '.txt' in infile:
     infile = infile[:infile.find('.txt')]
 
-indir = ''
+indir = 'data/'
 while '/' in infile:
     indir += infile[:infile.find('/') + 1]
     infile = infile[infile.find('/')+ 1 : ]
@@ -36,19 +36,67 @@ file_root = '{}bh_dagrad-dimnu_{}_{}.txt'
 
 Y_samples = None
 max_iter = 1000
-if len(sys.argv) > 2:
-    Y_samples = np.loadtxt(sys.argv[2])
-    max_iter = 500
-    file_root = 'init_' + file_root
-    max_iter = 250
+
+# if len(sys.argv) > 2:
+#    Y_samples = np.loadtxt(sys.argv[2])
+#    max_iter = 500
+#    file_root = 'init_' + file_root
+#    max_iter = 250
     # outfile = 'bh_da_init_' + infile + '_out.txt'
     # betafile = 'bh_da_init_' + infile + '_betas.txt'
 
+# subsample = None
     
 pc_data = np.loadtxt(indir + infile+'.txt').T
 
 if pc_data.shape[0] < pc_data.shape[1]:
     pc_data = pc_data.T
+
+truncate = False
+
+if truncate:
+
+    col_sums = pc_data.sum(axis=1)
+
+    good_inds = col_sums > .5* col_sums.mean()
+    
+    pc_data = pc_data[good_inds, :]
+
+    pc_data = np.log(1 + pc_data)
+    
+    new_D = pc_data.shape[1] / 2 
+    svd = TruncatedSVD(n_components = new_D)
+
+    pc_data = svd.fit_transform(pc_data)
+
+    good_inds = np.arange(len(good_inds))[good_inds]
+    np.savetxt(indir + infile + '_filterinds.txt', good_inds)
+    
+    print(pc_data.shape)
+    
+    
+if len(sys.argv) > 2:
+    subsample = float(sys.argv[2])
+
+    if subsample < 1:
+        
+        N_old = pc_data.shape[0]
+        N_new = int(N_old * subsample)
+
+        indices = np.random.choice(np.arange(N_old), size=N_new, replace=False)
+
+        pc_data = pc_data[indices, :]
+
+if len(sys.argv) > 3: 
+    Y_samples = np.loadtxt(sys.argv[3])
+    max_iter = 500
+    file_root = file_root[:2] + 'init_' + file_root[2:]
+    max_iter = 250
+
+    if truncate: 
+        Y_samples = Y_samples[good_inds,:]
+    # outfile = 'bh_da_init_' + infile + '_out.txt'
+    # betafile = 'bh_da_init_' + infile + '_betas.txt'
 
 print(pc_data.shape)
 

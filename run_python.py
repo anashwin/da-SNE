@@ -24,15 +24,33 @@ infile = sys.argv[1]
 if '.txt' in infile:
     infile = infile[:infile.find('.txt')]
 
-file_root = 'bh_{}_{}.txt'
+indir = 'data/'
+while '/' in infile:
+    indir += infile[:infile.find('/') + 1]
+    infile = infile[infile.find('/') + 1:]
+
+
+outdir = 'out/'
+
+file_root = '{}bh_{}_{}.txt'
 
 # outfile = sys.argv[2]
 
-pc_data = np.loadtxt(infile+'.txt').T
+pc_data = np.loadtxt(indir + infile+'.txt').T
 
 if pc_data.shape[0] < pc_data.shape[1]:
     pc_data = pc_data.T
 
+if len(sys.argv) > 2:
+    subsample = float(sys.argv[2])
+
+    N_old = pc_data.shape[0]
+    N_new = int(N_old * subsample)
+
+    indices = np.random.choice(np.arange(N_old), size=N_new, replace=False)
+
+    pc_data = pc_data[indices, :]
+    
 print(pc_data.shape)
 
 embedded, betas, orig_densities, emb_densities = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.3,
@@ -40,7 +58,7 @@ embedded, betas, orig_densities, emb_densities = bhtsne.run_bh_tsne(pc_data, ini
 
 # np.savetxt(outfile , embedded)
 # np.savetxt(betafile, betas)
-np.savetxt(file_root.format(infile, 'out'), embedded)
-np.savetxt(file_root.format(infile, 'betas'), betas)
-np.savetxt(file_root.format(infile, 'marg_origD'), orig_densities)
-np.savetxt(file_root.format(infile, 'marg_embD'), emb_densities)
+np.savetxt(file_root.format(outdir, infile, 'out'), embedded)
+np.savetxt(file_root.format(outdir, infile, 'betas'), betas)
+np.savetxt(file_root.format(outdir, infile, 'marg_origD'), orig_densities)
+np.savetxt(file_root.format(outdir, infile, 'marg_embD'), emb_densities)
