@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def int2color(i):
@@ -89,4 +89,4 @@ plt.show()
 
 print outfile
 
-fig.savefig('plots/' + outfile, bbox_inches='tight')
+# fig.savefig('plots/' + outfile, bbox_inches='tight')
