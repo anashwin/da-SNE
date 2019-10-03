@@ -135,6 +135,6 @@ ax.set_ylabel('log(Embedded Density)')
 # ax.xaxis.label.set_fontweight('bold')
 # plt.xlim(0,50)
 
-plt.show()
+# plt.show()
 fig.savefig('plots/'+plotfile, bbox_inches='tight')
 print "saved :", plotfile

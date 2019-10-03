@@ -457,7 +457,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       dC[i] = pos_f[i] - (neg_f[i] / sum_Q); 
       if (density) {
 	int n = (int) i / D; 
-	dC[i]-=density_weight // /exp(log_orig_densities[n] - min_log_orig_density)
+	dC[i]-=density_weight / log(N) // /exp(log_orig_densities[n] - min_log_orig_density)
 	*(dense_f1[i]/std_ed-cov_ed * dense_f2[i]/std_var_ed)/(N-1); 
       } 
     }

@@ -52,7 +52,7 @@ pc_data = np.loadtxt(indir + infile+'.txt').T
 if pc_data.shape[0] < pc_data.shape[1]:
     pc_data = pc_data.T
 
-truncate = False
+truncate = True
 
 if truncate:
 
