@@ -59,7 +59,7 @@ private:
 			 double* emb_densities, double* log_orig_densities, 
 			 double beta_min, double beta_max, double beta_thresh, int orig_D,
 			 double* self_loops, int& total_count, double& total_time, bool lying, 
-			 bool density, double density_weight);
+			 bool density, double density_weight, double min_log_orig_density);
     void computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas,
 			      double beta_min, double beta_max);
     double evaluateError(double* P, double* Y, int N, int D);

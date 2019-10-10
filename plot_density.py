@@ -3,11 +3,13 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 
 import matplotlib.cm as cm
 
 from matplotlib import pyplot as plt
+
+indir = 'out/'
 
 flav = 'bh_dagrad'
 orig = sys.argv[1]
@@ -29,20 +31,31 @@ if '.txt' in orig:
 # orig_D_fname = flav + '_' + orig + '_origD.txt'
 # emb_D_fname = flav + '_' + orig + '_embD.txt'
 
-orig_D_fname = flav + '_' + orig + '_marg_origD.txt'
+orig_D_fname = indir + flav + '_' + orig + '_marg_origD.txt'
 # orig_D_fname = flav + '_' + orig + '_embD.txt'
-emb_D_fname = flav + '_' + orig + '_marg_embD.txt'
+emb_D_fname = indir + flav + '_' + orig + '_marg_embD.txt'
 # emb_D_fname = flav + '_' + orig + '_origD.txt'
-
-if label_file is not None:
-    labels = np.loadtxt(label_file + '.txt')
-
+    
 plotfile = flav + '_' + orig + '_full_plt.png'
 
-lg_dist = np.log(np.loadtxt(orig_D_fname))
+eps = 1e-6
+lg_dist = np.log(np.loadtxt(orig_D_fname) + eps)
 # lg_dist = np.loadtxt(orig_D_fname)
-lg_emb_dist = np.log(np.loadtxt(emb_D_fname))
+lg_emb_dist = np.log(np.loadtxt(emb_D_fname) + eps)
 # lg_emb_dist = np.loadtxt(emb_D_fname)
+
+nozeros=True
+if nozeros:
+    good_inds = lg_dist > -10
+
+    lg_dist = lg_dist[good_inds]
+    lg_emb_dist = lg_emb_dist[good_inds]
+    
+
+if label_file is not None:
+    labels = np.loadtxt(label_file + '.txt', dtype=str, delimiter=' ')
+else:
+    labels = np.zeros(len(lg_dist))
 
 color_dict = {'bh':'green', 'bh_da':'blue', 'notails':'orange', 'bh_da_init':'magenta',
               'bh_dagrad':'blue'}
@@ -56,22 +69,26 @@ plt.cla()
 
 fig, ax = plt.subplots(1,1)
 
-
 label_set = set(labels)
 
 maxL = len(label_set)
+print(maxL)
 
 label_dict = dict()
+colors = cm.rainbow(np.linspace(0,1, maxL+1))
 for i, label in enumerate(label_set):
     label_dict[label] = i
 
-colors = cm.rainbow(np.linspace(0,1, maxL+1))
+    sub_lg_dist = lg_dist[labels==label]
+    sub_lg_emb_dist = lg_emb_dist[labels==label]
+    ax.scatter(sub_lg_dist, sub_lg_emb_dist, s=4, color=colors[i], label=label)  
 
-color_asgn = [colors[label_dict[label]] for label in labels]
+ax.legend()
+# color_asgn = [colors[label_dict[label]] for label in labels]
 
 # ax.scatter(pts[:,0], pts[:,1], color=color_asgn, s=4)
 
-ax.scatter(lg_dist, lg_emb_dist, s=4, color=color_asgn)
+# ax.scatter(lg_dist, lg_emb_dist, s=4, color=color_asgn)
 
 # ax.set_xlim([-16,-7])
 
@@ -128,5 +145,5 @@ ax.set_ylabel('log(Embedded Density)')
 # plt.xlim(0,50)
 
 plt.show()
-fig.savefig('plots/'+plotfile, bbox_inches='tight')
+# fig.savefig('plots/'+plotfile, bbox_inches='tight')
 print "saved :", plotfile
