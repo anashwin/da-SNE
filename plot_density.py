@@ -38,10 +38,19 @@ emb_D_fname = indir + flav + '_' + orig + '_marg_embD.txt'
     
 plotfile = flav + '_' + orig + '_full_plt.png'
 
-lg_dist = np.log(np.loadtxt(orig_D_fname))
+eps = 1e-6
+lg_dist = np.log(np.loadtxt(orig_D_fname) + eps)
 # lg_dist = np.loadtxt(orig_D_fname)
-lg_emb_dist = np.log(np.loadtxt(emb_D_fname))
+lg_emb_dist = np.log(np.loadtxt(emb_D_fname) + eps)
 # lg_emb_dist = np.loadtxt(emb_D_fname)
+
+nozeros=True
+if nozeros:
+    good_inds = lg_dist > -10
+
+    lg_dist = lg_dist[good_inds]
+    lg_emb_dist = lg_emb_dist[good_inds]
+    
 
 if label_file is not None:
     labels = np.loadtxt(label_file + '.txt', dtype=str, delimiter=' ')
@@ -135,6 +144,6 @@ ax.set_ylabel('log(Embedded Density)')
 # ax.xaxis.label.set_fontweight('bold')
 # plt.xlim(0,50)
 
-# plt.show()
-fig.savefig('plots/'+plotfile, bbox_inches='tight')
+plt.show()
+# fig.savefig('plots/'+plotfile, bbox_inches='tight')
 print "saved :", plotfile

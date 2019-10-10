@@ -365,14 +365,17 @@ unsigned int SPTree::getDepth() {
 
 // Compute non-edge forces using Barnes-Hut algorithm
 void SPTree::computeDensityForces(unsigned int point_index, double theta, double dense_f1[], 
-				  double dense_f2[])
+				  double dense_f2[], bool verbose)
 {
+
+  // if (verbose) printf("Point index %d is bad!\n", point_index); 
+  double tol = 1e-5; 
     
     // Make sure that we spend no time on empty nodes or self-interactions
     if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
     
     // Compute distance between point and center-of-mass
-    double D = .0;
+    double D = tol;
     unsigned int ind = point_index * dimension;
     for(unsigned int d = 0; d < dimension; d++) buff[d] = data[ind + d] - center_of_mass[d];
     for(unsigned int d = 0; d < dimension; d++) D += buff[d] * buff[d];
@@ -391,22 +394,34 @@ void SPTree::computeDensityForces(unsigned int point_index, double theta, double
       double sq_dist = D; 
       D = 1.0 / (1.0 + D);
       double mult = cum_size * D / dist;
-      double dr_me = D / all_marg_Q[point_index] 
-	* (2*dist + (1 - sq_dist) / all_emb_dens[point_index]); 
+      double dr_me = D / (tol + all_marg_Q[point_index])
+	* (2*dist + (1 - sq_dist) / (tol+all_emb_dens[point_index])); 
       double dr_you = D / marg_Q_com
-	* (2*dist + (1 - sq_dist) / emb_density_com); 
+	* (2*dist + (1 - sq_dist) / (tol + emb_density_com)); 
 
+
+      if(verbose) {
+	printf("mult: %f \nlog_orig_d: %f, log_orig_com: %f \nlog_emb_d: %f, log_emb_com: %f \nbuff: ( %f , %f ) \ndr_me: %f, dr_you: %f\n",
+	       mult, all_log_orig_dens[point_index], log_orig_density_com,
+	       all_log_emb_dens[point_index], log_emb_density_com,
+	       buff[0], buff[1], dr_me, dr_you);
+      }
       for(unsigned int d = 0; d < dimension; d++) {
 	dense_f1[d] += mult * (all_log_orig_dens[point_index]*dr_me 
 			       + log_orig_density_com*dr_you) * buff[d]; 
 	dense_f2[d] += mult * (all_log_emb_dens[point_index]*dr_me
 			       + log_emb_density_com*dr_you) * buff[d]; 
 	}
+      /*
+      if(verbose) {
+	printf("f1: ( %f , %f ), f2: ( %f , %f )\n", dense_f1[0], dense_f1[1], dense_f2[0], dense_f2[1]); 
+      }
+      */
     }
     else {
         // Recursively apply Barnes-Hut to children
       for(unsigned int i = 0; i < no_children; i++) children[i]->computeDensityForces(point_index, theta, dense_f1, 
-										      dense_f2);
+										      dense_f2, verbose);
     }
 }
 

@@ -82,6 +82,6 @@ for i, label in enumerate(label_set):
 
 # ax.scatter(pts[:,0], pts[:,1], color=color_asgn, s=4)
 ax.legend()
-# plt.show()
-fig.savefig('plots/' + outfile, bbox_inches='tight')
+plt.show()
+# fig.savefig('plots/' + outfile, bbox_inches='tight')
 print outfile

@@ -27,7 +27,7 @@ while '/' in infile:
 
 outdir = 'out/'
 
-file_root = '{}bh_dagrad-dimnu_{}_{}.txt'
+file_root = '{}bh_da-t-origD_{}_{}.txt'
 
 # outfile = 'bh_da_' + infile + '_out.txt'
 # betafile = 'bh_da_' + infile + '_betas.txt'
@@ -53,6 +53,7 @@ if pc_data.shape[0] < pc_data.shape[1]:
     pc_data = pc_data.T
 
 truncate = True
+# truncate = False
 
 if truncate:
 
@@ -71,7 +72,9 @@ if truncate:
 
     good_inds = np.arange(len(good_inds))[good_inds]
     np.savetxt(indir + infile + '_filterinds.txt', good_inds)
-    
+
+
+    file_root = file_root[0:2] + 'trunc_' + file_root[2:]
     print(pc_data.shape)
     
     
