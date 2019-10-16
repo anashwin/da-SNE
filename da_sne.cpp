@@ -899,7 +899,8 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 
 	sums_P[n] = sum_P;
 	
-	orig_density[n] = 0.;
+	// orig_density[n] = 0.;
+	
 	sums_Q[n] = 0.;
 
         for(unsigned int m = 0; m < K; m++) {
@@ -909,11 +910,11 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	    // orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
 	    // sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]);
 	    double buff = pow(1. + distances[m+1]*distances[m+1]/D, -(1. + D)/2.);
-	    orig_density[n] += distances[m+1]*buff;
+	    // orig_density[n] += distances[m+1]*buff;
 	    sums_Q[n] += buff; 
         }
-	orig_density[n] /= sums_Q[n];
-	
+	// orig_density[n] /= sums_Q[n];
+	orig_density[n] = distances[K/3]; 
 	/*
 	orig_density[n] = sqrt(beta)*(1 + sum_P);
 	// orig_density[n] = 0.; 

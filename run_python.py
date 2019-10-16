@@ -32,7 +32,7 @@ while '/' in infile:
 
 outdir = 'out/'
 
-file_root = '{}bh_{}_{}.txt'
+file_root = '{}bh_kNN-origD_{}_{}.txt'
 
 # outfile = sys.argv[2]
 
