@@ -50,8 +50,8 @@ bins = 100
 plt.figure()
 
 plt.hist(out_list, bins, color=color_list, stacked=True, normed=True)
-# plt.show()
+plt.show()
 
 
-plt.savefig('plots/' + flav + '_' + infile[:infile.find('.txt')]
-            + '_dense_hist.png', bbox_inches='tight')
+# plt.savefig('plots/' + flav + '_' + infile[:infile.find('.txt')]
+#             + '_dense_hist.png', bbox_inches='tight')

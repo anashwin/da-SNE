@@ -53,8 +53,8 @@ pc_data = np.loadtxt(indir + infile+'.txt').T
 if pc_data.shape[0] < pc_data.shape[1]:
     pc_data = pc_data.T
 
-truncate = True
-# truncate = False
+# truncate = True
+truncate = False
 
 if truncate:
 
@@ -115,7 +115,7 @@ print(pc_data.shape)
 embedded,betas,orig_densities,emb_densities=run_bh_tsne(pc_data, initial_dims=pc_data.shape[1],
                                                         theta=0.3, verbose=True, perplexity=50,
                                                         max_iter=max_iter, use_pca=False,
-                                                        Y_samples = Y_samples, weight=.1)
+                                                        Y_samples = Y_samples, weight=1)
 
 np.savetxt(file_root.format(outdir, infile, 'out'), embedded)
 np.savetxt(file_root.format(outdir, infile, 'betas'), betas)
