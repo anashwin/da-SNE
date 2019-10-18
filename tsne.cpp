@@ -569,11 +569,11 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
         for(unsigned int m = 0; m < K; m++) {
 	  cur_P[m] /= sum_P;
 	  // Distance notion of density
-	  // orig_densities[n] += cur_P[m]*distances[m+1];
-
+	  orig_densities[n] += cur_P[m]*distances[m+1];
+	  
 	  // Kernel notion of density
-	  orig_densities[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
-	  sums_Q += 1./(1 + distances[m+1]*distances[m+1]); 
+	  // orig_densities[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
+	  // sums_Q += 1./(1 + distances[m+1]*distances[m+1]); 
 	}
 	orig_densities[n] /= sums_Q; 
 	

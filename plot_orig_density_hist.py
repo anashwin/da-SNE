@@ -18,13 +18,19 @@ labelfile = sys.argv[2]
 if len(sys.argv) > 3:
     flav = sys.argv[3]
 
-indata = np.loadtxt(indir + flav + '_' + infile)
+indata = np.log(np.loadtxt(indir + flav + '_' + infile) + 1e-5)
 
 labels = np.loadtxt(labelfile, dtype=str, delimiter=' ')
 
 if len(labels.shape) > 1:
     labels = labels[:,-1]
 
+nozeros = True
+if nozeros:
+    inds = indata > .5 #-10
+    indata = indata[inds]
+    labels = labels[inds]
+    
 label_set = set(labels)
 
 maxL = len(label_set)
@@ -43,6 +49,8 @@ for i, label in enumerate(label_set):
 
     color_list.append(colors[i])
 
+    print label, len(sub_pts)
+    
 print len(out_list), len(color_list)
 
 bins = 100
