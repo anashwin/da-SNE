@@ -27,7 +27,8 @@ while '/' in infile:
     indir += infile[:infile.find('/') + 1]
     infile = infile[infile.find('/')+ 1 : ]
 
-outdir = 'out/'
+# outdir = 'out/'
+outdir = ''
 
 file_root = '{}bh_da-exp-origD_{}_{}.txt'
 
