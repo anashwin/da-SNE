@@ -27,7 +27,8 @@ if len(labels.shape) > 1:
 
 nozeros = True
 if nozeros:
-    inds = indata > .5 #-10
+    # inds = indata > .5
+    inds = indata > -10
     indata = indata[inds]
     labels = labels[inds]
     
