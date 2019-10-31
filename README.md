@@ -24,7 +24,7 @@ import bh_da_sne
 
 data = np.loadtxt("mnist2500_X.txt", skiprows=1)
 
-embedding_array = bh_da_sne.run_bh_tsne(data, initial_dims=data.shape[1], theta=.3,
+embedding_array, orig_densities, emb_densities = bh_da_sne.run_bh_tsne(data, initial_dims=data.shape[1], theta=.3,
 verbose=True, perplexity=50, max_iter = 1000, use_pca=True, Y_samples=None)
 ```
 You can also use my pre-wrtten wrapper:
