@@ -575,7 +575,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
 	  // orig_densities[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
 	  // sums_Q += 1./(1 + distances[m+1]*distances[m+1]); 
 	}
-	orig_densities[n] /= sums_Q; 
+	// orig_densities[n] /= sums_Q; 
 	
         for(unsigned int m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
