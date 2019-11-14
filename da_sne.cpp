@@ -50,7 +50,7 @@ using namespace std;
 void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta,
 		 double beta_thresh, int rand_seed, bool skip_random_init, int max_iter,
 		 int stop_lying_iter, int mom_switch_iter, int density_iter, 
-		 double density_weight) {
+		 double density_weight, bool distance_mat) {
   // JUST FOR WEIGHTED T-SNE with initialized Nu
   // density_iter = max_iter;
   
@@ -141,7 +141,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         // Compute asymmetric pairwise input similarities
         computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity,
 				  (int) (3 * perplexity),
-				  betas, min_beta, max_beta, self_loops, orig_densities);
+				  betas, min_beta, max_beta, self_loops, orig_densities, distance_mat);
 
         // Symmetrize input similarities
         symmetrizeMatrix(&row_P, &col_P, &val_P, N);
@@ -792,7 +792,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 				       unsigned int** _col_P, double** _val_P, double perplexity,
 				       int K, double* betas, double& smallest_beta,
 				       double& largest_beta, double* self_loops,
-				       double* orig_density)
+				       double* orig_density, bool distance_mat)
 {
     if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
@@ -817,6 +817,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
     row_P[0] = 0;
     for(int n = 0; n < N; n++) row_P[n + 1] = row_P[n] + (unsigned int) K;
 
+    else { 
     // Build ball tree on data set
     VpTree<DataPoint, euclidean_distance>* tree = new VpTree<DataPoint, euclidean_distance>();
     vector<DataPoint> obj_X(N, DataPoint(D, -1, X));
@@ -824,9 +825,10 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
     tree->create(obj_X);
 
     // Loop over all points to find nearest neighbors
-    printf("Building tree...\n");
+    printf("Building tree...\n"); 
     vector<DataPoint> indices;
     vector<double> distances;
+
     for(int n = 0; n < N; n++) {
 
         if(n % 10000 == 0) printf(" - point %d of %d\n", n, N);

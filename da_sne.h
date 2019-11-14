@@ -44,7 +44,7 @@ public:
   void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, 
 	   double theta, double beta_thresh, int rand_seed,
 	   bool skip_random_init, int max_iter=1000, int stop_lying_iter=250, 
-	   int mom_switch_iter=250, int density_iter = 750, double density_weight = 1.0);
+	   int mom_switch_iter=250, int density_iter = 750, double density_weight = 1.0, bool distance_mat = false);
   bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* beta_thresh, 
 		 double* perplexity, int* rand_seed, int* max_iter, bool* init_Y, 
 		 double* double_weight);
@@ -69,7 +69,8 @@ private:
     // Need to update the nearest neighbors P calculation too 
     void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
 				   unsigned int** _col_P, double** _val_P, double perplexity, int K,
-				   double* betas, double& smallest_beta, double& largest_beta, double* self_loops, double* orig_density);
+				   double* betas, double& smallest_beta, double& largest_beta, double* self_loops, double* orig_density,
+				   bool distance_mat);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };

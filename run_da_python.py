@@ -79,6 +79,9 @@ if truncate:
     file_root = file_root[0:2] + 'trunc_' + file_root[2:]
     print(pc_data.shape)
     
+
+input_distances = False
+
     
 if len(sys.argv) > 2:
     subsample = float(sys.argv[2])
