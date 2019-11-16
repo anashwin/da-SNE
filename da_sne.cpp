@@ -834,10 +834,22 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
         if(n % 10000 == 0) printf(" - point %d of %d\n", n, N);
 
         // Find nearest neighbors
-        indices.clear();
-        distances.clear();
-        tree->search(obj_X[n], K + 1, &indices, &distances);
+	indices.clear();
+	distances.clear();
 
+	if(distance_mat) {
+	  // Fill in with the stuff to do if we have a distance matrix input
+	  // Maybe we have Y containing the indices if X already contains the distances? 
+	  for (int j=0; j < K; j++) {
+	    distances[j+1] = X[D*n + j];
+	    indices[j+1] 
+	  } 
+	  
+	}
+	else { 
+	  tree->search(obj_X[n], K + 1, &indices, &distances);
+	}
+	
         // Initialize some variables for binary search
         bool found = false;
         double beta = 1.0;
