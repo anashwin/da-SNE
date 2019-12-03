@@ -81,7 +81,7 @@ for i, label in enumerate(label_set):
 
     sub_lg_dist = lg_dist[labels==label]
     sub_lg_emb_dist = lg_emb_dist[labels==label]
-    ax.scatter(sub_lg_dist, sub_lg_emb_dist, s=4, color=colors[i], label=label)  
+    ax.scatter(sub_lg_dist, sub_lg_emb_dist, s=1, color=colors[i], label=label, alpha=.7)  
 
 ax.legend()
 # color_asgn = [colors[label_dict[label]] for label in labels]

@@ -389,8 +389,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    // double var_ed = .1;
-    double var_ed = 0.; 
+    double var_ed = .1;
+    // double var_ed = 0.; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
@@ -934,7 +934,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
       double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
-	/ (sqrt(N)); 
+	/ ((N)); 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
       // extra_term = 0.; 
