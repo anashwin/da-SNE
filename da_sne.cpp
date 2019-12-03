@@ -174,7 +174,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     double var_od = 0.;
     double tol = 1e-5; 
     for (int n=0; n<N; n++) {
-      log_orig_densities[n] = log(tol+orig_densities[n]); 
+      log_orig_densities[n] = orig_densities[n]; 
       mean_od += log_orig_densities[n]/N; 
     }
     for (int n=0; n<N; n++) { 
@@ -430,7 +430,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
       // Compute mean of the log embedded densities
       for(int n=0; n < N; n++) { 
-	log_emb_densities[n] = log(tol+emb_densities[n]); 
+	// log_emb_densities[n] = log(tol+emb_densities[n]);
+	log_emb_densities[n] = emb_densities[n]; 
 	mean_ed += log_emb_densities[n]/N; 
       }
 
@@ -448,7 +449,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       // printf("density at bad, orig: %f, emb: %f\n", log_orig_densities[n_bad], emb_densities[n_bad]); 
 
       for(int n=0; n < N; n++) { 
-	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D); 
+	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D, mean_ed); 
       }
       // printf("density forces at bad, f1: %f, f2: %f\n", dense_f1[2*n_bad],dense_f1[2*n_bad]);
       
@@ -905,7 +906,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
         for(unsigned int m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
             val_P[row_P[n] + m] = cur_P[m];
-	    orig_density[n] += cur_P[m]*distances[m+1]/sum_P;
+	    orig_density[n] += cur_P[m]*log(tol+distances[m+1])/sum_P;
 	    // orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
 	    // sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]);
 	    // double buff = pow(1. + distances[m+1]*distances[m+1]/D, -(1. + D)/2.);
@@ -933,7 +934,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
       double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
-	/ (N); 
+	/ (sqrt(N)); 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
       // extra_term = 0.; 

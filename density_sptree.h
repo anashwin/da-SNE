@@ -118,7 +118,7 @@ public:
     void getAllIndices(unsigned int* indices);
     unsigned int getDepth();
     void computeDensityForces(unsigned int point_index, double theta, double dense_f1[], 
-			      double dense_f2[], bool verbose=false); 
+			      double dense_f2[], double mean_ed, bool verbose=false); 
     void print();
     
 private:

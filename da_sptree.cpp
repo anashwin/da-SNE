@@ -391,7 +391,7 @@ void DA_SPTree::computeDensityForces(unsigned int point_index, double theta, dou
 // Compute non-edge forces using Barnes-Hut algorithm (with the full DA_SNE algorithm)
 void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double beta_thresh, double neg_f[], double* sum_Q, int& total_count, double& total_time, double& emb_density)
 {
-  
+  double tol = 1e-5; 
     // Make sure that we spend no time on empty nodes or self-interactions
     if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
     
@@ -456,7 +456,11 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
       
       double mult = cum_size * D;
       *sum_Q += mult; // This is going to be Z
-      emb_density += mult*dist;
+      
+      // Updating to log of expectation
+      emb_density += mult*log(dist + tol);
+      //
+      
       // emb_density += mult; 
       mult *= (nu+1)/nu*D_base;
       // mult *= nu/2. * D_base; 

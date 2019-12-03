@@ -365,7 +365,7 @@ unsigned int SPTree::getDepth() {
 
 // Compute non-edge forces using Barnes-Hut algorithm
 void SPTree::computeDensityForces(unsigned int point_index, double theta, double dense_f1[], 
-				  double dense_f2[], bool verbose)
+				  double dense_f2[], double mean_ed, bool verbose)
 {
 
   // if (verbose) printf("Point index %d is bad!\n", point_index); 
@@ -390,16 +390,32 @@ void SPTree::computeDensityForces(unsigned int point_index, double theta, double
     if(is_leaf || max_width / sqrt(D) < theta) {
     
         // Compute and add t-SNE force between point and current node
+      /*
       double dist = sqrt(D); 
       double sq_dist = D; 
       D = 1.0 / (1.0 + D);
       double mult = cum_size * D / dist;
+
       double dr_me = D / (tol + all_marg_Q[point_index])
 	* (2*dist + (1 - sq_dist) / (tol+all_emb_dens[point_index])); 
+	
       double dr_you = D / marg_Q_com
 	* (2*dist + (1 - sq_dist) / (tol + emb_density_com)); 
+	*/
 
+      // Switching to expectation of log_distance (rather than the other way around)
+      // **************************************************
 
+      double dist = D + tol;
+      D = 1.0 / (1.0 + D);
+
+      double mult = cum_size * D;
+      
+      double dr_me = (D * (all_log_emb_dens[point_index] + mean_ed - log(dist)) + 1./dist)
+	/ all_marg_Q[point_index];
+      double dr_you = (D * (log_emb_density_com + mean_ed - log(dist)) + 1./dist) / marg_Q_com;
+      
+      // ***************************************************
       if(verbose) {
 	printf("mult: %f \nlog_orig_d: %f, log_orig_com: %f \nlog_emb_d: %f, log_emb_com: %f \nbuff: ( %f , %f ) \ndr_me: %f, dr_you: %f\n",
 	       mult, all_log_orig_dens[point_index], log_orig_density_com,
@@ -421,7 +437,7 @@ void SPTree::computeDensityForces(unsigned int point_index, double theta, double
     else {
         // Recursively apply Barnes-Hut to children
       for(unsigned int i = 0; i < no_children; i++) children[i]->computeDensityForces(point_index, theta, dense_f1, 
-										      dense_f2, verbose);
+										      dense_f2, mean_ed, verbose);
     }
 }
 

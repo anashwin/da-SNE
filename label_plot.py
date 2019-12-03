@@ -75,13 +75,17 @@ for i, label in enumerate(label_set):
     label_dict[label] = i
 
     sub_pts = pts[labels == label,:]
-    ax.scatter(sub_pts[:,0], sub_pts[:,1], color=colors[i], s=2, label=label)
+    ax.scatter(sub_pts[:,0], sub_pts[:,1], color=colors[i], s=1, alpha=.7, label=label)
 
 
 # color_asgn = [colors[label_dict[label]] for label in labels]
 
 # ax.scatter(pts[:,0], pts[:,1], color=color_asgn, s=4)
-ax.legend()
+# ax.legend()
 plt.show()
 # fig.savefig('plots/' + outfile, bbox_inches='tight')
 print outfile
+
+
+
+
