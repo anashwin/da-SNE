@@ -43,7 +43,7 @@ int main() {
 	}
 	else { 
 	  tsne->run(data, N, D, Y, no_dims, perplexity, theta, beta_thresh, rand_seed, init_Y, 
-		    max_iter, 250, 250, max_iter - 250, density_weight);
+		    max_iter, 250, 250, max_iter - 350, density_weight);
 	} 
 	// Save the results
 	tsne->save_data(Y, landmarks, costs, N, no_dims);

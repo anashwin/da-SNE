@@ -362,7 +362,6 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 			     bool lying, bool density, double density_weight,
 			     double min_log_orig_density)
 {
-  int n_bad = 48306; 
   // DEBUG!!
   // density = true; 
   // for(int n=0; n<N; n++) {
@@ -390,14 +389,15 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    double var_ed = .1; 
+    // double var_ed = .1;
+    double var_ed = 0.; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
 
     double tol = 1e-5; 
     // double emb_density = 0.;
-    // lying = false;
+    lying = false;
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
     if (lying) { 
@@ -445,7 +445,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       d_tree = new SPTree(D, Y, emb_densities, log_emb_densities, log_orig_densities, 
 			    all_marg_Q, N); 
 
-      printf("density at bad, orig: %f, emb: %f\n", log_orig_densities[n_bad], emb_densities[n_bad]); 
+      // printf("density at bad, orig: %f, emb: %f\n", log_orig_densities[n_bad], emb_densities[n_bad]); 
 
       for(int n=0; n < N; n++) { 
 	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D); 
@@ -933,10 +933,10 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
       double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
-	/ (D*N); 
+	/ (N); 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
-      
+      // extra_term = 0.; 
       
       for(unsigned int m=0; m<K; m++) {
 
