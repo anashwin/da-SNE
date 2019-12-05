@@ -484,7 +484,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 				     double* sum_Q, int& total_count, double& total_time,
 				     double& emb_density)
 {
-    
+  double tol = 1e-5;
     // Make sure that we spend no time on empty nodes or self-interactions
     if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
     
@@ -508,7 +508,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
         D = 1.0 / (1.0 + D);
         double mult = cum_size * D;
         *sum_Q += mult;
-	emb_density += mult*dist;
+	emb_density += mult*log(dist+tol);
 	// emb_density += mult; 
         mult *= D;
 	clock_t end = clock(); 
