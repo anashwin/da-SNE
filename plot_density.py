@@ -44,7 +44,7 @@ lg_dist = np.log(np.loadtxt(orig_D_fname) + eps)
 lg_emb_dist = np.log(np.loadtxt(emb_D_fname) + eps)
 # lg_emb_dist = np.loadtxt(emb_D_fname)
 
-nozeros=True
+nozeros=False #True
 if nozeros:
     good_inds = lg_dist > -10
 
