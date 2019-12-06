@@ -122,8 +122,9 @@ public:
 			      int& total_count, double& total_time, double& emb_density);
     
     void computeNonEdgeForces(unsigned int point_index, double theta,
-			      double neg_f[], double* sum_Q, int& total_count, double& total_time,
-			      double& emb_density);
+			      double neg_f[], double* sum_Q, double* sum_D,
+			      int& total_count, double& total_time,
+			      double& emb_density, double beta_min);
     void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying);
     // void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f);
     void print();

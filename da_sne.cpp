@@ -372,7 +372,6 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
   SPTree* d_tree; 
     // Compute all terms required for t-SNE gradient
     double sum_Q = .0;
-
     /*
     for (int n=0; n<N; n++) {
       // double beta = betas[n];
@@ -394,7 +393,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
-
+    double marg_D = 0.;
+    
     double tol = 1e-5; 
     // double emb_density = 0.;
     lying = false;
@@ -403,13 +403,15 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     if (lying) { 
       for(int n = 0; n < N; n++) {
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q,
+				   total_count, total_time, emb_densities[n]);
 	sum_Q += marg_Q;
-	emb_densities[n] /= marg_Q;
+	emb_densities[n] /= marg_D;
 
 	// Marginal notion of density 
 	// emb_densities[n] = marg_Q; 
 	marg_Q = 0.;
+	marg_D = 0.; 
       }
     }
     else if(density) { 
@@ -418,14 +420,25 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       double* log_emb_densities = (double*) malloc(N * sizeof(double)); 
 
       for(int n = 0; n < N; n++) {
+	if (isinf(emb_densities[n])) { 
+	  printf("n: %d, embD: %f, marg: %f\n", n, emb_densities[n], marg_D);
+	}
+
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, &marg_D,
+				   total_count, total_time, emb_densities[n], beta_min);
+	// if (marg_D < tol) {
+	// printf("low margD: %d, %f\n", n, marg_D); 
+	// }
+
 	
-	emb_densities[n] /= marg_Q; 
+	emb_densities[n] /= marg_Q;
 	all_marg_Q[n] = marg_Q; 
 	sum_Q += marg_Q;
-	marg_Q = 0.;	
+	marg_Q = 0.;
+	marg_D = 0.; 
       }
+
       printf("tree generated\n");
 
       // Compute mean of the log embedded densities
@@ -435,6 +448,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	mean_ed += log_emb_densities[n]/N; 
       }
 
+      printf("mean: %f\n", mean_ed); 
+      
       for(int n=0; n < N; n++) {
 	log_emb_densities[n] -= mean_ed; // Center log embedded densities
 	var_ed += log_emb_densities[n]*log_emb_densities[n] / (N - 1);
@@ -461,12 +476,27 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     }  
     else {
       for(int n = 0; n < N; n++) {
+
+	if (isinf(emb_densities[n])) { 
+	  printf("~~~~~~~~~~~~~n: %d, embD: %f, marg: %f~~~~~~~~~~~~~\n", n, emb_densities[n], marg_D);
+	}
+
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
-	
+				   &marg_Q, &marg_D,
+				   total_count, total_time, emb_densities[n], beta_min);
+	if (marg_D < tol) {
+	  printf("SMALL SMALL SMALL: %f AND AND %d \n", marg_D, n); 
+	} 
+		
+	/*
+	if (isinf(emb_densities[n])) { 
+	  printf("n: %d, embD: %f, marg: %f\n", n, emb_densities[n], marg_D);
+	}
+	*/
 	emb_densities[n] /= marg_Q; 
 	sum_Q += marg_Q;
-	marg_Q = 0.;	
+	marg_Q = 0.;
+	marg_D = 0.; 
       }
     }
     

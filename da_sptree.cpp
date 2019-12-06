@@ -480,10 +480,17 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 }
 
 // Compute non-edge forces using Barnes-Hut algorithm (original t-SNE)
-void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[],
-				     double* sum_Q, int& total_count, double& total_time,
-				     double& emb_density)
+void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta,
+				     double neg_f[],
+				     double* sum_Q, double* sum_D,
+				     int& total_count, double& total_time,
+				     double& emb_density, double beta_min)
 {
+  // DEBUG
+
+  if (isinf(emb_density)) {
+    printf("BAD AT START! %f, %f, %f, %d\n", emb_density, *sum_Q, *sum_D, point_index); 
+  } 
   double tol = 1e-5;
     // Make sure that we spend no time on empty nodes or self-interactions
     if(cum_size == 0 || (is_leaf && size == 1 && index[0] == point_index)) return;
@@ -505,10 +512,26 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
       double dist = sqrt(D); 
         // Compute and add t-SNE force between point and current node
       clock_t start = clock();
-        D = 1.0 / (1.0 + D);
-        double mult = cum_size * D;
-        *sum_Q += mult;
-	emb_density += mult*log(dist+tol);
+      // double density_D = exp(-beta_min * D);
+
+      D = 1.0 / (1.0 + D);
+	// double density_D = exp(-
+        double mult = cum_size * D;        
+	*sum_Q += mult;
+
+	if (is_leaf || *sum_D < tol) {
+	  // double mult_D = cum_size * D; 
+	  *sum_D += mult;
+	  if (isinf(emb_density)) {
+	    printf("BAD!, %f; %f; %f; %d\n", log(dist+tol), *sum_Q, *sum_D, point_index);
+	  } 
+	  emb_density += mult*log(dist+tol);
+	  /*
+	  if (isinf(emb_density)) {
+	    printf("BAD!, %f; %f; %f\n", log(dist+tol), dist, mult);
+	  } 
+	  */
+	 }
 	// emb_density += mult; 
         mult *= D;
 	clock_t end = clock(); 
@@ -517,10 +540,12 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 	total_count++; 
     }
     else {
-
+      if (isinf(emb_density)) {
+	printf("BAD AT RECURSION! %f, %f, %f, %d\n", emb_density, *sum_Q, *sum_D, point_index); 
+      } 
         // Recursively apply Barnes-Hut to children
-      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, total_count, total_time, emb_density);
-    }
+      for(unsigned int i = 0; i < no_children; i++) children[i]->computeNonEdgeForces(point_index, theta, neg_f, sum_Q, sum_D, total_count, total_time, emb_density, beta_min);
+    } 
 }
 
 
