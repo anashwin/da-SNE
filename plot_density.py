@@ -39,10 +39,10 @@ emb_D_fname = indir + flav + '_' + orig + '_marg_embD.txt'
 plotfile = flav + '_' + orig + '_full_plt.png'
 
 eps = 1e-6
-lg_dist = np.log(np.loadtxt(orig_D_fname) + eps)
-# lg_dist = np.loadtxt(orig_D_fname)
-lg_emb_dist = np.log(np.loadtxt(emb_D_fname) + eps)
-# lg_emb_dist = np.loadtxt(emb_D_fname)
+# lg_dist = np.log(np.loadtxt(orig_D_fname) + eps)
+lg_dist = np.loadtxt(orig_D_fname)
+# lg_emb_dist = np.log(np.loadtxt(emb_D_fname) + eps)
+lg_emb_dist = np.loadtxt(emb_D_fname)
 
 nozeros=False #True
 if nozeros:
