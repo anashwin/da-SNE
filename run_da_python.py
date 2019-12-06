@@ -30,7 +30,7 @@ while '/' in infile:
 outdir = 'out/'
 # outdir = ''
 
-file_root = '{}bh_da-explog-N_{}_{}.txt'
+file_root = '{}bh_da-explog-logN_{}_{}.txt'
 
 # outfile = 'bh_da_' + infile + '_out.txt'
 # betafile = 'bh_da_' + infile + '_betas.txt'

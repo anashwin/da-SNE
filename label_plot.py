@@ -71,7 +71,9 @@ print maxL
 label_dict = dict()
 colors = cm.rainbow(np.linspace(0,1, maxL+1))
 
+# label_set = set(['CD14+_Monocyte'])
 for i, label in enumerate(label_set):
+
     label_dict[label] = i
 
     sub_pts = pts[labels == label,:]
@@ -81,7 +83,7 @@ for i, label in enumerate(label_set):
 # color_asgn = [colors[label_dict[label]] for label in labels]
 
 # ax.scatter(pts[:,0], pts[:,1], color=color_asgn, s=4)
-# ax.legend()
+ax.legend()
 plt.show()
 # fig.savefig('plots/' + outfile, bbox_inches='tight')
 print outfile
