@@ -418,6 +418,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       double* log_emb_densities = (double*) malloc(N * sizeof(double)); 
 
       for(int n = 0; n < N; n++) {
+	// Zeroing the densities
+	emb_densities[n] = tol; 
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
 				   &marg_Q, total_count, total_time, emb_densities[n]);
 	
@@ -934,7 +936,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
       double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
-	/ (log(N)); 
+	/ ((N)); 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
       // extra_term = 0.; 
