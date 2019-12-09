@@ -61,7 +61,7 @@ private:
 			 double beta_min, double beta_max, double beta_thresh, int orig_D,
 			 double* self_loops, int& total_count, double& total_time, bool lying, 
 			 bool density, double density_weight, double min_log_orig_density,
-			 double* inp_val_D);
+			 double* inp_val_D, double* sums_P);
     void computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas,
 			      double beta_min, double beta_max);
     double evaluateError(double* P, double* Y, int N, int D);

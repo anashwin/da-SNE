@@ -525,7 +525,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 
 
 // Computes edge forces
-void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying, bool density, double** _emb_densities, double* val_D)
+void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying, bool density, double* emb_densities, double* val_D)
 {
     
     // Loop over all edges in the graph
@@ -534,11 +534,6 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
     double D;
     double nu = 1.;
     double tol = 1e-5;
-    
-    if (density) {
-      *_emb_densities = (double*) calloc(N, sizeof(double));
-      double* emb_densities = *_emb_densities; 
-    }
     
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {

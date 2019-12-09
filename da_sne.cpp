@@ -149,8 +149,21 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         // Symmetrize input similarities
         symmetrizeMatrix(&row_P, &col_P, &val_P, N, &val_D);
         double sum_P = .0;
+	double* sums_P = (double *) calloc(N, sizeof(double));
+	
         for(int i = 0; i < row_P[N]; i++) sum_P += val_P[i];
         for(int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
+	// int row_ind = 0;
+	
+	for(int n = 0; n < N; n++) {
+	  // iterate through each row of the sparse matrix
+	  for(int i = row_P[n]; i < row_P[n+1]; i++){
+	    sums_P[n] += val_P[i]; 
+	  } 
+	  
+	}
+	
+	
 	// Should the downweighting happen here or in the computeGaussianPerplexity function?
     }
 
@@ -224,7 +237,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 			       emb_densities, log_orig_densities, 
 			       min_beta, max_beta, beta_thresh, D, self_loops, sp_count, sp_time,
 			       iter < stop_lying_iter, iter >= density_iter, 
-			       density_weight, min_log_orig_density, val_D);
+			       density_weight, min_log_orig_density, val_D, sums_P);
 
 	  if (iter >=density_iter) {
 	    printf("Density Iter # %d\n", iter); 
@@ -350,7 +363,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         free(row_P); row_P = NULL;
         free(col_P); col_P = NULL;
         free(val_P); val_P = NULL;
-	free(val_D); val_D = NULL; 
+	free(val_D); val_D = NULL;
+	free(sums_P); sums_P = NULL; 
     }
     printf("Fitting performed in %4.2f seconds.\n", total_time);
 }
@@ -364,7 +378,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 			     double beta_min, double beta_max, double beta_thresh, int orig_D,
 			     double* self_loops, int& total_count, double& total_time,
 			     bool lying, bool density, double density_weight,
-			     double min_log_orig_density, double* inp_val_D)
+			     double min_log_orig_density, double* inp_val_D, double* sums_P)
 {
   // DEBUG!!
   // density = true; 
@@ -402,6 +416,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double tol = 1e-5; 
     // double emb_density = 0.;
     lying = false;
+
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
     if (lying) { 
