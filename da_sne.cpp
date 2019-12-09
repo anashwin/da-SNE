@@ -402,6 +402,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
     if (lying) { 
       for(int n = 0; n < N; n++) {
+	emb_densities[n] = tol;
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
 				   &marg_Q, total_count, total_time, emb_densities[n]);
 	sum_Q += marg_Q;
@@ -418,6 +419,11 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       double* log_emb_densities = (double*) malloc(N * sizeof(double)); 
 
       for(int n = 0; n < N; n++) {
+	// Zero out the embedded densities for each ieration? 
+	emb_densities[n] = tol;
+	if (n == 100) {
+	  printf("zeroed? %f\n",  emb_densities[n]); 
+	}
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
 				   &marg_Q, total_count, total_time, emb_densities[n]);
 	
@@ -460,9 +466,11 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     }  
     else {
       for(int n = 0; n < N; n++) {
+	// why are the embedded densities not being zeroed out??
+	emb_densities[n] = tol; 
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
 				   &marg_Q, total_count, total_time, emb_densities[n]);
-	
+
 	emb_densities[n] /= marg_Q; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
