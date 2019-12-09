@@ -525,14 +525,20 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 
 
 // Computes edge forces
-void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying)
+void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying, bool density, double** _emb_densities, double* val_D)
 {
     
     // Loop over all edges in the graph
     unsigned int ind1 = 0;
     unsigned int ind2 = 0;
     double D;
-    double nu = 1.; 
+    double nu = 1.;
+    double tol = 1e-5;
+    
+    if (density) {
+      *_emb_densities = (double*) calloc(N, sizeof(double));
+      double* emb_densities = *_emb_densities; 
+    }
     
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
@@ -542,6 +548,12 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
 	  // nu = 1.;
 	    nu = 1 + betas[n] + betas[col_P[i]];
 	  }
+	  if (density) {
+	    emb_densities[n] += val_P[i] * log(val_D[i] + tol); 
+	  }
+	  // Need to sum Ps don't we?
+
+	  
             // Compute pairwise distance and Q-value
             D = 1.0;
             ind2 = col_P[i] * dimension;
@@ -554,6 +566,7 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
             for(unsigned int d = 0; d < dimension; d++) {
 	      pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
 	    }
+	    
 	    // for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }
         ind1 += dimension;

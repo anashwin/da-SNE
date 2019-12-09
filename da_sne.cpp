@@ -100,7 +100,9 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     for(int i = 0; i < N * D; i++) X[i] /= max_X;
 
     // Compute input similarities for exact t-SNE
-    double* P; unsigned int* row_P; unsigned int* col_P; double* val_P; 
+    double* P; unsigned int* row_P; unsigned int* col_P; double* val_P;
+    double* val_D;
+    
     double* betas = (double*) malloc(N*sizeof(double));
     double* orig_densities = (double*) malloc(N*sizeof(double));
     double* emb_densities = (double*) calloc(N, sizeof(double));
@@ -141,10 +143,11 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         // Compute asymmetric pairwise input similarities
         computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity,
 				  (int) (3 * perplexity),
-				  betas, min_beta, max_beta, self_loops, orig_densities);
+				  betas, min_beta, max_beta, self_loops, orig_densities,
+				  &val_D);
 
         // Symmetrize input similarities
-        symmetrizeMatrix(&row_P, &col_P, &val_P, N);
+        symmetrizeMatrix(&row_P, &col_P, &val_P, N, &val_D);
         double sum_P = .0;
         for(int i = 0; i < row_P[N]; i++) sum_P += val_P[i];
         for(int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
@@ -221,7 +224,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 			       emb_densities, log_orig_densities, 
 			       min_beta, max_beta, beta_thresh, D, self_loops, sp_count, sp_time,
 			       iter < stop_lying_iter, iter >= density_iter, 
-			       density_weight, min_log_orig_density);
+			       density_weight, min_log_orig_density, val_D);
 
 	  if (iter >=density_iter) {
 	    printf("Density Iter # %d\n", iter); 
@@ -347,6 +350,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         free(row_P); row_P = NULL;
         free(col_P); col_P = NULL;
         free(val_P); val_P = NULL;
+	free(val_D); val_D = NULL; 
     }
     printf("Fitting performed in %4.2f seconds.\n", total_time);
 }
@@ -360,7 +364,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 			     double beta_min, double beta_max, double beta_thresh, int orig_D,
 			     double* self_loops, int& total_count, double& total_time,
 			     bool lying, bool density, double density_weight,
-			     double min_log_orig_density)
+			     double min_log_orig_density, double* inp_val_D)
 {
   // DEBUG!!
   // density = true; 
@@ -442,17 +446,21 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       } 
       printf("covar and var computed: %f, %f\n", cov_ed, var_ed); 
       // DEBUG
-      // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed); 
+      // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed);
+      /*
       d_tree = new SPTree(D, Y, emb_densities, log_emb_densities, log_orig_densities, 
 			    all_marg_Q, N); 
-
+      
       // printf("density at bad, orig: %f, emb: %f\n", log_orig_densities[n_bad], emb_densities[n_bad]); 
 
       for(int n=0; n < N; n++) { 
 	d_tree -> computeDensityForces(n, theta, dense_f1 + n*D, dense_f2 + n*D, mean_ed); 
       }
       // printf("density forces at bad, f1: %f, f2: %f\n", dense_f1[2*n_bad],dense_f1[2*n_bad]);
-      
+      */
+
+      // TODO: Use the constant P matrix approximation to the gradient.
+
       printf("correlation: %f\n", cov_ed / sqrt(var_ed)); 
       
       free(log_emb_densities); 
@@ -793,7 +801,8 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 				       unsigned int** _col_P, double** _val_P, double perplexity,
 				       int K, double* betas, double& smallest_beta,
 				       double& largest_beta, double* self_loops,
-				       double* orig_density)
+				       double* orig_density,
+				       double** _val_D)
 {
     if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
@@ -805,10 +814,17 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
     *_col_P = (unsigned int*)    calloc(N * K, sizeof(unsigned int));
     *_val_P = (double*) calloc(N * K, sizeof(double));
     
+    *_val_D = (double*) calloc(N * K, sizeof(double));
+    
     if(*_row_P == NULL || *_col_P == NULL || *_val_P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     unsigned int* row_P = *_row_P;
     unsigned int* col_P = *_col_P;
     double* val_P = *_val_P;
+
+    // unsigned int* row_D = *_row_D;
+    // unsigned int* col_D = *_col_D; 
+    double* val_D = *_val_D;
+    
     double* cur_P = (double*) malloc((N - 1) * sizeof(double));
 
     double* sums_P = (double*) malloc(N*sizeof(double)); 
@@ -816,6 +832,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
     
     if(cur_P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     row_P[0] = 0;
+    
     for(int n = 0; n < N; n++) row_P[n + 1] = row_P[n] + (unsigned int) K;
 
     // Build ball tree on data set
@@ -904,9 +921,13 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 	sums_Q[n] = 0.;
 
         for(unsigned int m = 0; m < K; m++) {
+	  
+	  val_D[row_P[n] + m] = distances[m+1]; 
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
+	    
             val_P[row_P[n] + m] = cur_P[m];
 	    orig_density[n] += cur_P[m]*log(tol+distances[m+1])/sum_P;
+	    
 	    // orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
 	    // sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]);
 	    // double buff = pow(1. + distances[m+1]*distances[m+1]/D, -(1. + D)/2.);
@@ -969,13 +990,16 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
 
 
 // Symmetrizes a sparse matrix
-void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, int N) {
+void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, int N,
+			      double** _val_D) {
 
     // Get sparse matrix
     unsigned int* row_P = *_row_P;
     unsigned int* col_P = *_col_P;
     double* val_P = *_val_P;
 
+    double* val_D = *_val_D; 
+    
     // Count number of elements and row counts of symmetric matrix
     int* row_counts = (int*) calloc(N, sizeof(int));
     if(row_counts == NULL) { printf("Memory allocation failed!\n"); exit(1); }
@@ -1001,6 +1025,9 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
     unsigned int* sym_row_P = (unsigned int*) malloc((N + 1) * sizeof(unsigned int));
     unsigned int* sym_col_P = (unsigned int*) malloc(no_elem * sizeof(unsigned int));
     double* sym_val_P = (double*) malloc(no_elem * sizeof(double));
+
+    double* sym_val_D = (double*) malloc(no_elem * sizeof(double));
+    
     if(sym_row_P == NULL || sym_col_P == NULL || sym_val_P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
 
     // Construct new row indices for symmetric matrix
@@ -1021,8 +1048,10 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
                     if(n <= col_P[i]) {                                                 // make sure we do not add elements twice
                         sym_col_P[sym_row_P[n]        + offset[n]]        = col_P[i];
                         sym_col_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = n;
+			
                         sym_val_P[sym_row_P[n]        + offset[n]]        = val_P[i] + val_P[m];
                         sym_val_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_P[i] + val_P[m];
+
                     }
                 }
             }
@@ -1031,8 +1060,12 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
             if(!present) {
                 sym_col_P[sym_row_P[n]        + offset[n]]        = col_P[i];
                 sym_col_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = n;
+		
                 sym_val_P[sym_row_P[n]        + offset[n]]        = val_P[i];
                 sym_val_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_P[i];
+
+		sym_val_D[sym_row_P[n] + offset[n]] = val_D[i];
+		sym_val_D[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_D[i]; 
             }
 
             // Update offsets
@@ -1050,6 +1083,8 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
     free(*_row_P); *_row_P = sym_row_P;
     free(*_col_P); *_col_P = sym_col_P;
     free(*_val_P); *_val_P = sym_val_P;
+    
+    free(*_val_D); *_val_D = sym_val_D; 
 
     // Free up some memery
     free(offset); offset = NULL;

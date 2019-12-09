@@ -50,7 +50,8 @@ public:
 		 double* double_weight);
   bool load_Y(double** Y, int* n, int* d); 
   void save_data(double* data, int* landmarks, double* costs, int n, int d);
-  void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
+  void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N,
+			double** val_D); // should be static!
 
 
 private:
@@ -59,7 +60,8 @@ private:
 			 double* emb_densities, double* log_orig_densities, 
 			 double beta_min, double beta_max, double beta_thresh, int orig_D,
 			 double* self_loops, int& total_count, double& total_time, bool lying, 
-			 bool density, double density_weight, double min_log_orig_density);
+			 bool density, double density_weight, double min_log_orig_density,
+			 double* inp_val_D);
     void computeExactGradient(double* P, double* Y, int N, int D, double* dC, double* betas,
 			      double beta_min, double beta_max);
     double evaluateError(double* P, double* Y, int N, int D);
@@ -69,7 +71,7 @@ private:
     // Need to update the nearest neighbors P calculation too 
     void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P,
 				   unsigned int** _col_P, double** _val_P, double perplexity, int K,
-				   double* betas, double& smallest_beta, double& largest_beta, double* self_loops, double* orig_density);
+				   double* betas, double& smallest_beta, double& largest_beta, double* self_loops, double* orig_density, double** _val_D);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };
