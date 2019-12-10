@@ -525,7 +525,7 @@ void DA_SPTree::computeNonEdgeForces(unsigned int point_index, double theta, dou
 
 
 // Computes edge forces
-void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying, bool density, double* emb_densities, double* val_D)
+void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f, bool lying, double* emb_densities, double* val_D)
 {
     
     // Loop over all edges in the graph
@@ -544,9 +544,9 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
 	  // nu = 1.;
 	    nu = 1 + betas[n] + betas[col_P[i]];
 	  }
-	  if (density) {
-	    emb_densities[n] += val_P[i] * log(val_D[i] + tol); 
-	  }
+	  //if (density) {
+	  emb_densities[n] += val_P[i] * log(val_D[i] + tol); 
+	    //}
 	  // Need to sum Ps don't we?
 
 	  

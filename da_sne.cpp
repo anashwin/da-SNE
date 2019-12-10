@@ -111,7 +111,10 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     double* self_loops = (double*) malloc(N*sizeof(double)); 
     
     double min_beta;
-    double max_beta; 
+    double max_beta;
+
+    double* sums_P = (double *) calloc(N, sizeof(double));
+	
     if(exact) {
         // Compute similarities
         printf("Exact?");
@@ -149,7 +152,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         // Symmetrize input similarities
         symmetrizeMatrix(&row_P, &col_P, &val_P, N, &val_D);
         double sum_P = .0;
-	double* sums_P = (double *) calloc(N, sizeof(double));
+
 	
         for(int i = 0; i < row_P[N]; i++) sum_P += val_P[i];
         for(int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
@@ -468,10 +471,10 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       // Compute density forces based on P matrix
       double* buff = (double*) malloc(D * sizeof(double));
       for (int n=0; n < N; n++) {
-	for (int i=row_P[n]; i < row_P[n+1]; i++) {
+	for (int i=inp_row_P[n]; i < inp_row_P[n+1]; i++) {
 
 	  double dist = tol; 
-	  int other = col_P[i];
+	  int other = inp_col_P[i];
 	  
 	  for (unsigned int d=0; d < D; d++) {
 	    buff[d] = Y[n*D + d] - Y[other*D + d];
@@ -483,12 +486,12 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	  
 	  dist = sqrt(dist); 
 
-	  double dr_me = (QQ * (emb_densities[n] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[n];
-	  double dr_you = (QQ * (emb_densities[other] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[other];
+	  double dr_me = (QQ * (log_emb_densities[n] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[n];
+	  double dr_you = (QQ * (log_emb_densities[other] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[other];
 
 	  for(unsigned int d=0; d < D; d++) {
-	    dense_f1[n*D + d] += QQ * (log_orig_densties[n]*dr_me + log_orig_densities[other]*dr_you) * buff[d];
-	    dense_f2[n*D + d] += QQ * (log_emb_densties[n]*dr_me + log_emb_densities[other]*dr_you) * buff[d];
+	    dense_f1[n*D + d] += QQ * (log_orig_densities[n]*dr_me + log_orig_densities[other]*dr_you) * buff[d];
+	    dense_f2[n*D + d] += QQ * (log_emb_densities[n]*dr_me + log_emb_densities[other]*dr_you) * buff[d];
 	  } 
 	}
 
