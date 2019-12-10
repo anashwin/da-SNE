@@ -536,6 +536,7 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
     double tol = 1e-5;
     
     for(unsigned int n = 0; n < N; n++) {
+      emb_densities[n] = tol; 
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
 	  if (lying) { 
 	    // nu = (1. + atan(betas[n] + betas[col_P[i]]));

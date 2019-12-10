@@ -418,14 +418,16 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     lying = false;
 
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying);
+    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying, emb_densities, inp_val_D);
     if (lying) { 
       for(int n = 0; n < N; n++) {
+	double foo = 0; 
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, total_count, total_time, foo);
 	sum_Q += marg_Q;
-	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= marg_Q;
 
+	emb_densities[n] /= sums_P[n]; 
 	// Marginal notion of density 
 	// emb_densities[n] = marg_Q; 
 	marg_Q = 0.;
@@ -437,10 +439,12 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
       double* log_emb_densities = (double*) malloc(N * sizeof(double)); 
 
       for(int n = 0; n < N; n++) {
+	double foo = 0.; 
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, total_count, total_time, foo);
 	
-	emb_densities[n] /= marg_Q; 
+	// emb_densities[n] /= marg_Q;
+	emb_densities[n] /= sums_P[n]; 
 	all_marg_Q[n] = marg_Q; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
@@ -459,7 +463,37 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	var_ed += log_emb_densities[n]*log_emb_densities[n] / (N - 1);
 	cov_ed += log_emb_densities[n]*log_orig_densities[n] / (N - 1);
       } 
-      printf("covar and var computed: %f, %f\n", cov_ed, var_ed); 
+      printf("covar and var computed: %f, %f\n", cov_ed, var_ed);
+
+      // Compute density forces based on P matrix
+      double* buff = (double*) malloc(D * sizeof(double));
+      for (int n=0; n < N; n++) {
+	for (int i=row_P[n]; i < row_P[n+1]; i++) {
+
+	  double dist = tol; 
+	  int other = col_P[i];
+	  
+	  for (unsigned int d=0; d < D; d++) {
+	    buff[d] = Y[n*D + d] - Y[other*D + d];
+	    dist += buff[d]*buff[d]; 
+	  }
+	  // dist = sqrt(dist);
+	  
+	  double QQ = 1.0 / (1.0 + dist);
+	  
+	  dist = sqrt(dist); 
+
+	  double dr_me = (QQ * (emb_densities[n] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[n];
+	  double dr_you = (QQ * (emb_densities[other] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[other];
+
+	  for(unsigned int d=0; d < D; d++) {
+	    dense_f1[n*D + d] += QQ * (log_orig_densties[n]*dr_me + log_orig_densities[other]*dr_you) * buff[d];
+	    dense_f2[n*D + d] += QQ * (log_emb_densties[n]*dr_me + log_emb_densities[other]*dr_you) * buff[d];
+	  } 
+	}
+
+	
+      }
       // DEBUG
       // printf("Creating the Density SPTree! with var %f and covar %f \n", var_ed, cov_ed);
       /*
@@ -476,11 +510,13 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
       // TODO: Use the constant P matrix approximation to the gradient.
 
+      
+      
       printf("correlation: %f\n", cov_ed / sqrt(var_ed)); 
       
       free(log_emb_densities); 
       free(all_marg_Q); 
-      delete d_tree; 
+      // delete d_tree; 
     }  
     else {
       for(int n = 0; n < N; n++) {
