@@ -422,15 +422,17 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying, emb_densities, inp_val_D);
+    
+    printf("embD sample: %f\n", emb_densities[100]); 
     if (lying) { 
       for(int n = 0; n < N; n++) {
 	double foo = 0; 
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
 				   &marg_Q, total_count, total_time, foo);
 	sum_Q += marg_Q;
-	// emb_densities[n] /= marg_Q;
+	emb_densities[n] /= marg_Q;
 
-	emb_densities[n] /= sums_P[n]; 
+	// emb_densities[n] /= sums_P[n]; 
 	// Marginal notion of density 
 	// emb_densities[n] = marg_Q; 
 	marg_Q = 0.;
@@ -446,8 +448,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
 				   &marg_Q, total_count, total_time, foo);
 	
-	// emb_densities[n] /= marg_Q;
-	emb_densities[n] /= sums_P[n]; 
+	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= sums_P[n]; 
 	all_marg_Q[n] = marg_Q; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
@@ -487,11 +489,14 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	  dist = sqrt(dist); 
 
 	  double dr_me = (QQ * (log_emb_densities[n] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[n];
+	  // double dr_me = inp_val_P[n]/(sums_P[n]*log(dist)); 
+	    
 	  double dr_you = (QQ * (log_emb_densities[other] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[other];
+	  //double dr_you = inp_val_P[other]/(sums_P[other]*log(dist)); 
 
 	  for(unsigned int d=0; d < D; d++) {
-	    dense_f1[n*D + d] += QQ * (log_orig_densities[n]*dr_me + log_orig_densities[other]*dr_you) * buff[d];
-	    dense_f2[n*D + d] += QQ * (log_emb_densities[n]*dr_me + log_emb_densities[other]*dr_you) * buff[d];
+	    dense_f1[n*D + d] += QQ*(log_orig_densities[n]*dr_me + log_orig_densities[other]*dr_you) * buff[d];
+	    dense_f2[n*D + d] += QQ*(log_emb_densities[n]*dr_me + log_emb_densities[other]*dr_you) * buff[d];
 	  } 
 	}
 
@@ -523,10 +528,12 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     }  
     else {
       for(int n = 0; n < N; n++) {
+	double foo = 0.; 
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
-				   &marg_Q, total_count, total_time, emb_densities[n]);
+				   &marg_Q, total_count, total_time, foo);
 	
-	emb_densities[n] /= marg_Q; 
+	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= sums_P[n]; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
       }
@@ -1009,7 +1016,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
       double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
-	/ (log(N)); 
+	/ ((N)); 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
       // extra_term = 0.; 
