@@ -71,7 +71,7 @@ print maxL
 label_dict = dict()
 colors = cm.rainbow(np.linspace(0,1, maxL+1))
 
-label_set = set(['CD34+'])
+# label_set = set(['CD14+_Monocyte'])
 for i, label in enumerate(label_set):
 
     label_dict[label] = i

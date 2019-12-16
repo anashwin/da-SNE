@@ -18,7 +18,8 @@ labelfile = sys.argv[2]
 if len(sys.argv) > 3:
     flav = sys.argv[3]
 
-indata = np.log(np.loadtxt(indir + flav + '_' + infile) + 1e-5)
+# indata = np.log(np.loadtxt(indir + flav + '_' + infile) + 1e-5)
+indata = np.loadtxt(indir + flav + '_' + infile)
 
 labels = np.loadtxt(labelfile, dtype=str, delimiter=' ')
 

@@ -410,8 +410,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    double var_ed = .1;
-    // double var_ed = 0.; 
+    // double var_ed = .1;
+    double var_ed = 0.; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
