@@ -30,16 +30,16 @@ while '/' in infile:
 outdir = 'out/'
 # outdir = ''
 weight =.1
-# file_root = '{}bh_da-explogNN-N_{}_{}.txt'
-file_root = '{}dense_test_{}_{}.txt'
+file_root = '{}bh_da-explogNN_{}_{}.txt'
+# file_root = '{}dense_test_{}_{}.txt'
 
 # outfile = 'bh_da_' + infile + '_out.txt'
 # betafile = 'bh_da_' + infile + '_betas.txt'
 # orig_d_file = 'bh
 
 Y_samples = None
-# max_iter = 1100
-max_iter = 10
+max_iter = 1100
+# max_iter = 10
 
 # if len(sys.argv) > 2:
 #    Y_samples = np.loadtxt(sys.argv[2])
