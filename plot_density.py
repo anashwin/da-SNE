@@ -44,6 +44,7 @@ lg_dist = np.loadtxt(orig_D_fname)
 # lg_emb_dist = np.log(np.loadtxt(emb_D_fname) + eps)
 lg_emb_dist = np.loadtxt(emb_D_fname)
 
+
 nozeros=True
 if nozeros:
     good_inds = lg_dist > -10
@@ -60,8 +61,14 @@ else:
 color_dict = {'bh':'green', 'bh_da':'blue', 'notails':'orange', 'bh_da_init':'magenta',
               'bh_dagrad':'blue'}
 
-num_bins = 100
+num_bins = 10
 n, bins, patches = plt.hist(lg_dist, num_bins)
+
+pos = np.digitize(lg_dist, bins)
+
+np.savetxt('grid_dense_lin_space.txt', pos, fmt='%s')
+
+print blahhhhhhhhhhhhhh
 
 plt.show()
 plt.cla()
