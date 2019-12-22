@@ -77,7 +77,7 @@ if len(sys.argv) > 2:
     
 print(pc_data.shape)
 
-embedded, betas, orig_densities, emb_densities = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.3,
+embedded, betas, orig_densities, emb_densities = bhtsne.run_bh_tsne(pc_data, initial_dims=pc_data.shape[1], theta=0.5,
                               verbose=True, perplexity=50, max_iter=1000, use_pca=False)
 
 # np.savetxt(outfile , embedded)
