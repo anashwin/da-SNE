@@ -29,7 +29,7 @@ while '/' in infile:
 
 outdir = 'out/'
 # outdir = ''
-weight =.25
+weight = .1
 file_root = '{}bh_da-explogNN_{}_{}.txt'
 # file_root = '{}dense_test_{}_{}.txt'
 
