@@ -64,13 +64,13 @@ color_dict = {'bh':'green', 'bh_da':'blue', 'notails':'orange', 'bh_da_init':'ma
 num_bins = 10
 n, bins, patches = plt.hist(lg_dist, num_bins)
 
-pos = np.digitize(lg_dist, bins)
+# pos = np.digitize(lg_dist, bins)
 
-print pos.shape, lg_dist.shape, pos
-# print(n)
-np.savetxt('grid_dense_labels.txt',pos, fmt='%s')
-print 'SAVED!'
-print blahhhhhhhhhhhhh
+# print pos.shape, lg_dist.shape, pos
+# # print(n)
+# np.savetxt('grid_dense-flex_labels.txt',pos, fmt='%s')
+# print 'SAVED!'
+# print blahhhhhhhhhhhhh
 
 plt.show()
 plt.cla()
