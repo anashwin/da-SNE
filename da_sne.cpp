@@ -344,11 +344,27 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     }
     end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
 
+
+    double* NN_emb_densities = (double*) malloc(N * sizeof(double));
+    
+    unsigned int* NN_row_P; unsigned int* NN_col_P; double* NN_val_P; double* NN_val_D; 
+
+    
+    double foo1; double foo2;
+
+    printf("Computing optimal output embedded densities\n");
+    
+    computeGaussianPerplexity(Y, N, no_dims, &NN_row_P, &NN_col_P, &NN_val_P, perplexity, (int) 3*perplexity,
+			      betas, foo1, foo2, self_loops, NN_emb_densities, &NN_val_D); 
+    
     beta_file.open("beta_file.txt", fstream::out | fstream::app);
     if (beta_file.is_open()) {
       for (int n = 0; n<N; n++) {
 	beta_file << emb_densities[n] << "\n";
 	// printf("%f\n", emb_densities[n]); 
+      }
+      for (int n = 0; n<N; n++) {
+	beta_file << NN_emb_densities[n] << "\n"; 
       } 
     } 
     
@@ -360,7 +376,9 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
     free(orig_densities);
     free(emb_densities); 
     free(log_betas); 
-    free(self_loops); 
+    free(self_loops);
+    free(NN_emb_densities);
+    free(NN_row_P); free(NN_col_P); free(NN_val_P); free(NN_val_D); 
     if(exact) free(P);
     else {
         free(row_P); row_P = NULL;

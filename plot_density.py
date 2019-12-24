@@ -33,7 +33,7 @@ if '.txt' in orig:
 
 orig_D_fname = indir + flav + '_' + orig + '_marg_origD.txt'
 # orig_D_fname = flav + '_' + orig + '_embD.txt'
-emb_D_fname = indir + flav + '_' + orig + '_marg_embD.txt'
+emb_D_fname = indir + flav + '_' + orig + '_marg_NN_embD.txt'
 # emb_D_fname = flav + '_' + orig + '_origD.txt'
     
 plotfile = flav + '_' + orig + '_full_plt.png'
