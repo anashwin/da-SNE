@@ -437,9 +437,9 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double tol = 1e-5; 
     // double emb_density = 0.;
     lying = false;
-
+    double* all_marg_Q = (double*) malloc(N * sizeof(double)); 
     if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying, emb_densities, inp_val_D);
+    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f, lying, emb_densities, all_marg_Q);
     
     printf("embD sample: %f\n", emb_densities[100]); 
     if (lying) { 
@@ -448,7 +448,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	tree->computeNonEdgeForces(n, theta, beta_thresh, neg_f + n * D,
 				   &marg_Q, total_count, total_time, foo);
 	sum_Q += marg_Q;
-	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= marg_Q;
 
 	// emb_densities[n] /= sums_P[n]; 
 	// Marginal notion of density 
@@ -458,7 +458,6 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     }
     else if(density) { 
 
-      double* all_marg_Q = (double*) malloc(N * sizeof(double)); 
       double* log_emb_densities = (double*) malloc(N * sizeof(double)); 
 
       for(int n = 0; n < N; n++) {
@@ -466,9 +465,9 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
 				   &marg_Q, total_count, total_time, foo);
 	
-	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= marg_Q;
 	// emb_densities[n] /= sums_P[n]; 
-	all_marg_Q[n] = marg_Q; 
+	// all_marg_Q[n] = marg_Q; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	
       }
@@ -550,7 +549,7 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	tree->computeNonEdgeForces(n, theta, neg_f + n * D,
 				   &marg_Q, total_count, total_time, foo);
 	
-	emb_densities[n] /= marg_Q;
+	// emb_densities[n] /= marg_Q;
 	// emb_densities[n] /= sums_P[n]; 
 	sum_Q += marg_Q;
 	marg_Q = 0.;	

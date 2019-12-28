@@ -536,7 +536,8 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
     double tol = 1e-5;
     
     for(unsigned int n = 0; n < N; n++) {
-      emb_densities[n] = tol; 
+      emb_densities[n] = tol;
+      val_D[n] = tol; 
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
 	  if (lying) { 
 	    // nu = (1. + atan(betas[n] + betas[col_P[i]]));
@@ -559,6 +560,8 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
 
 
 	    // emb_densities[n] += log(sqrt(nu*D-1.) +tol) * val_P[i] ;
+
+	    val_D[n] += 1./D; 
 	    emb_densities[n] += log(sqrt(nu*D-1.) + tol) / D; 
             D = val_P[i] / D;
 	    // D = val_P[i] * pow(D, -(nu+1)/2.); 
@@ -571,6 +574,7 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
 	    // for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
         }
         ind1 += dimension;
+	emb_densities[n] /= val_D[n]; 
     }
 }
 
