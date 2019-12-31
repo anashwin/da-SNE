@@ -153,17 +153,18 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
         symmetrizeMatrix(&row_P, &col_P, &val_P, N, &val_D);
         double sum_P = .0;
 
-	
         for(int i = 0; i < row_P[N]; i++) sum_P += val_P[i];
         for(int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
 	// int row_ind = 0;
 	
 	for(int n = 0; n < N; n++) {
+	  orig_densities[n] = 0.; 
 	  // iterate through each row of the sparse matrix
 	  for(int i = row_P[n]; i < row_P[n+1]; i++){
-	    sums_P[n] += val_P[i]; 
+	    orig_densities[n] += log(val_D[i]+.00001)*val_P[i]; 
+	    sums_P[n] += val_P[i];
 	  } 
-	  
+	  orig_densities[n] /= sums_P[n]; 
 	}
 	
 	
@@ -267,7 +268,7 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 	  */ 
 
         // Update gains
-        for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .1) : (gains[i] * .3);
+        for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
         for(int i = 0; i < N * no_dims; i++) if(gains[i] < .01) gains[i] = .01;
 
         // Perform gradient update (with momentum and gains)
@@ -367,6 +368,8 @@ void DA_SNE::run(double* X, int N, int D, double* Y, int no_dims, double perplex
 	beta_file << NN_emb_densities[n] << "\n"; 
       } 
     } 
+
+    beta_file.close();
     
     // Clean up memory
     free(dY);
@@ -1004,7 +1007,7 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
             col_P[row_P[n] + m] = (unsigned int) indices[m + 1].index();
 	    
             val_P[row_P[n] + m] = cur_P[m];
-	    orig_density[n] += cur_P[m]*log(tol+distances[m+1])/sum_P;
+	    // orig_density[n] += cur_P[m]*log(tol+distances[m+1])/sum_P;
 	    
 	    // orig_density[n] += distances[m+1]/(1 + distances[m+1]*distances[m+1]);
 	    // sums_Q[n] += 1./(1. + distances[m+1]*distances[m+1]);
@@ -1141,10 +1144,9 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
 		
                 sym_val_P[sym_row_P[n]        + offset[n]]        = val_P[i];
                 sym_val_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_P[i];
-
-		sym_val_D[sym_row_P[n] + offset[n]] = val_D[i];
-		sym_val_D[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_D[i]; 
-            }
+	    }
+	    sym_val_D[sym_row_P[n] + offset[n]] = val_D[i];
+	    sym_val_D[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_D[i]; 
 
             // Update offsets
             if(!present || (present && n <= col_P[i])) {

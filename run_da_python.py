@@ -29,8 +29,8 @@ while '/' in infile:
 
 outdir = 'out/'
 # outdir = ''
-weight = .2
-file_root = '{}bh_da-explogNN_{}_{}.txt'
+weight = .1
+file_root = '{}bh_da-explogNN-sym_{}_{}.txt'
 # file_root = '{}dense_test_{}_{}.txt'
 
 # outfile = 'bh_da_' + infile + '_out.txt'
@@ -116,7 +116,7 @@ print(pc_data.shape)
 ## print(pc_data.shape)
 
 embedded,betas,orig_densities,emb_densities, NN_emb_densities=run_bh_tsne(pc_data, initial_dims=pc_data.shape[1],
-                                                        theta=0.5, verbose=True, perplexity=30,
+                                                        theta=0.5, verbose=True, perplexity=50,
                                                         max_iter=max_iter, use_pca=False,
                                                         Y_samples = Y_samples, weight=weight)
 

@@ -568,7 +568,8 @@ void DA_SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, doub
 	    // printf("[%f, {%f, %f}]; ", D, buff[0], buff[1]); 
             // Sum positive force
             for(unsigned int d = 0; d < dimension; d++) {
-	      pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
+	      // pos_f[ind1 + d] += (nu+1)/nu * D * buff[d];
+	      pos_f[ind1 + d] += D*buff[d]; 
 	    }
 	    
 	    // for(unsigned int d = 0; d < dimension; d++) pos_f[ind1 + d] += D * buff[d];
