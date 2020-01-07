@@ -935,11 +935,11 @@ void DA_SNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _
       // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta))
       // 		   /(.0001 + log(betas[n]/smallest_beta)*D));
       // double extra_term = log(betas[n]/smallest_beta)/N;
-      double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
-	/ ((N)); 
+      // double extra_term = (.5*((largest_beta/betas[n]) - 1 + log(betas[n]/largest_beta)))
+      // / ((N)); 
       // double extra_term = (betas[n] - smallest_beta) / (largest_beta - smallest_beta);
       // double extra_term = D*log(betas[n]/smallest_beta) / max_ratio;
-      // extra_term = 0.; 
+      double extra_term = 0.; 
       
       for(unsigned int m=0; m<K; m++) {
 
