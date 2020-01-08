@@ -406,14 +406,14 @@ void SPTree::computeDensityForces(unsigned int point_index, double theta, double
       // Switching to expectation of log_distance (rather than the other way around)
       // **************************************************
 
-      double dist = D + tol;
+      double dist = sqrt(D);
       D = 1.0 / (1.0 + D);
 
       double mult = cum_size * D;
       
-      double dr_me = (D * (all_log_emb_dens[point_index] + mean_ed - log(dist)) + 1./dist)
+      double dr_me = (D * (all_log_emb_dens[point_index] + mean_ed - log(dist)) + 1./(dist*dist))
 	/ all_marg_Q[point_index];
-      double dr_you = (D * (log_emb_density_com + mean_ed - log(dist)) + 1./dist) / marg_Q_com;
+      double dr_you = (D * (log_emb_density_com + mean_ed - log(dist)) + 1./(dist*dist)) / marg_Q_com;
       
       // ***************************************************
       if(verbose) {
