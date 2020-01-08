@@ -431,8 +431,8 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
     double* dense_f2 = (double*) calloc(N * D, sizeof(double)); 
 
     double mean_ed = 0.; 
-    // double var_ed = .1;
-    double var_ed = 0.; 
+    double var_ed = .1;
+    // double var_ed = 0.; 
     double cov_ed = 0.; 
 
     double marg_Q = 0.;
@@ -508,10 +508,10 @@ void DA_SNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, d
 	  
 	  dist = sqrt(dist); 
 
-	  double dr_me = (QQ * (log_emb_densities[n] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[n];
+	  double dr_me = (QQ * (log_emb_densities[n] + mean_ed - log(dist)) + 1./(2*dist*dist)) / all_marg_Q[n];
 	  // double dr_me = inp_val_P[n]/(sums_P[n]*log(dist)); 
 	    
-	  double dr_you = (QQ * (log_emb_densities[other] + mean_ed - log(dist)) + 1./dist) / all_marg_Q[other];
+	  double dr_you = (QQ * (log_emb_densities[other] + mean_ed - log(dist)) + 1./(2*dist*dist)) / all_marg_Q[other];
 	  //double dr_you = inp_val_P[other]/(sums_P[other]*log(dist)); 
 
 	  for(unsigned int d=0; d < D; d++) {
@@ -1132,6 +1132,9 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
 			
                         sym_val_P[sym_row_P[n]        + offset[n]]        = val_P[i] + val_P[m];
                         sym_val_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_P[i] + val_P[m];
+			
+			sym_val_D[sym_row_P[n] + offset[n]] = val_D[i];
+			sym_val_D[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_D[m]; 
 
                     }
                 }
@@ -1144,10 +1147,10 @@ void DA_SNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, doub
 		
                 sym_val_P[sym_row_P[n]        + offset[n]]        = val_P[i];
                 sym_val_P[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_P[i];
-	    }
-	    sym_val_D[sym_row_P[n] + offset[n]] = val_D[i];
-	    sym_val_D[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_D[i]; 
+		sym_val_D[sym_row_P[n] + offset[n]] = val_D[i];
+		sym_val_D[sym_row_P[col_P[i]] + offset[col_P[i]]] = val_D[i]; 
 
+	    }
             // Update offsets
             if(!present || (present && n <= col_P[i])) {
                 offset[n]++;
